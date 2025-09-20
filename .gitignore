@@ -1,0 +1,9 @@
+# Don't Share Raw Data
+Data/HDS_intermediate_data/*
+Data/HDS_raw_data/*
+Data/HDS_technical_data/*
+
+#Don't Share Auxiliary Files
+.DS_Store
+Data/.DS_Store
+.Rproj.user

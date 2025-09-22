@@ -179,6 +179,34 @@ The cleaning process generates two primary output files. First, \texttt{sales\_c
 
 \section{Recommended Homes Data Integration}
 
+\subsection{Data Deduplication and Quality Control}
+
+\subsubsection{Rechomes Data Deduplication}
+
+The recommended homes (\texttt{rechomes}) dataset contains records of properties shown to testers during their visits. Initial inspection revealed the presence of duplicate records that needed systematic resolution before analysis. The deduplication process addresses duplicates arising from multiple sources, including data entry errors and repeated records of the same property.
+
+Our deduplication strategy identifies duplicate records based on the complete address specification: \texttt{CONTROL}, \texttt{TESTERID}, \texttt{HSITEAD} (street address), \texttt{HSITETYP} (site type), \texttt{HUNITNO} (unit number), \texttt{HCITY}, \texttt{HSTATE}, and \texttt{HZIP}. When duplicates are identified, we retain the first occurrence and remove subsequent records. This approach assumes that the first entry represents the original data capture, with subsequent duplicates arising from data processing or entry errors.
+
+The deduplication process reduced the rechomes dataset from 24,859 initial rows to 24,679 unique property-tester combinations, removing 180 duplicate records (0.72\% of the initial dataset). This modest reduction suggests generally good data quality with limited duplication issues.
+
+\subsubsection{Rhgeo Data Processing and Cleaning}
+
+The \texttt{rhgeo} dataset provides geocoded information for recommended homes, enabling geographic analysis of property recommendations. The processing of this dataset involves three sequential steps to ensure data quality and consistency.
+
+First, we remove exact duplicate records that may have arisen during data processing or merging. This step reduced the dataset from 16,643 initial rows to 16,358 rows, removing 285 exact duplicates (1.71\% of records). These duplicates likely arose from data processing errors rather than genuine repeated property showings.
+
+Second, we identify and remove records with malformed or missing address information that would prevent meaningful geographic analysis. The filtering criteria exclude records where the street address field contains non-informative values such as ``unknown'', ``did not provide'', ``MODEL HOME'', or variations thereof. We also exclude records with effectively empty addresses (containing only whitespace, dashes, or zeros) and addresses too short to be meaningful (three characters or fewer after trimming). This filtering removed 15 additional records with problematic addresses including: ``255'', ``Covington/Model Home'', ``did not provide'', ``MODEL HOME'', ``Model home/ Castleberry model'', ``Model home/Brookland model'', ``Model home/Chelsea model'', ``none'', ``Sananah/Model Home'', ``unknown'', and ``unknown (Rangler house)''.
+
+Third, we perform address-based deduplication similar to that applied to the rechomes data, retaining the first occurrence when multiple records share identical address components. This final step removed only one additional duplicate, yielding 16,342 unique geocoded property records.
+
+\subsubsection{Rechomes-Rhgeo Integration Analysis}
+
+Our merge analysis reveals an asymmetric relationship between these datasets. All 16,342 records in the deduplicated \texttt{rhgeo} dataset have corresponding entries in \texttt{rechomes}, indicating complete coverage of geocoded properties. However, 8,337 records in \texttt{rechomes} (33.78\%) lack corresponding geocoded information in \texttt{rhgeo}. 
+
+Notably, the proportion of rechomes records with geocoding (66.22\%) represents almost exactly two-thirds of the dataset, suggesting a systematic sampling or processing decision by the original data providers rather than geocoding failures. Investigation of the addresses that were and were not geocoded reveals no apparent systematic differences in address quality or format between the two groups. This pattern indicates that the original researchers likely geocoded a representative subset of properties rather than attempting comprehensive geocoding, possibly due to resource constraints or analytical requirements that did not necessitate complete geographic coverage.
+
+The merged \texttt{rechomes\_rhgeo} dataset retains all 24,679 records from the deduplicated \texttt{rechomes} data, with geocoded information available for the two-thirds subset that was processed in the original study. This approach preserves maximum information while clearly identifying which properties have geographic data available for spatial analyses.
+
 \subsection{Analytical Sample Definition}
 
 Before merging recommended homes data, we first establish our analytical sample by applying key filtering criteria to ensure data quality and experimental validity. The analytical sample is constructed through a two-stage filtering process that addresses both outcome availability and experimental design requirements.
@@ -199,35 +227,74 @@ This filtering process demonstrates the data attrition inherent in creating a hi
 
 \subsection{Recommended Homes Data Merging}
 
-The recommended homes (\texttt{rechomes}) dataset contains detailed information about properties shown to testers during their visits, including property characteristics, location data, and pricing information. This data is crucial for analyzing whether minority and white testers are shown homes of similar quality and in similar neighborhoods, representing a key dimension of potential discrimination.
-
-The merging process employs a left join on \texttt{CONTROL} and \texttt{TESTERID}, preserving all observations from the analytical sample while adding available property information. This approach acknowledges that recommended homes data may not exist for all testers, either because they were shown no properties or because property data was not successfully collected or recorded.
+The merging process employs a left join on \texttt{CONTROL} and \texttt{TESTERID}, preserving all observations from the analytical sample while adding available property information from the merged \texttt{rechomes\_rhgeo} dataset. This approach acknowledges that recommended homes data may not exist for all testers, either because they were shown no properties or because property data was not successfully collected or recorded.
 
 \begin{lstlisting}[language=R]
 sales_tester_rechomes <- analytic_sales_tester %>%
-  left_join(rechomes, by = c("CONTROL", "TESTERID")) %>%
-  mutate(has_rechomes_data = rowSums(!is.na(select(., starts_with("H")))) > 0)
+  left_join(rechomes_rhgeo, by = c("CONTROL", "TESTERID")) %>%
+  mutate(has_rechomes_data = rowSums(!is.na(select(., HSITEAD, HZIP))) > 0)
 \end{lstlisting}
 
-The merge reveals important patterns in data availability. Of the 7,302 observations in our analytical sample, 6,122 observations (83.8\%) successfully merge with recommended homes data, while 1,180 observations (16.2\%) lack property information. Notably, 111 observations show positive values for \texttt{STOTUNIT\_TOTAL} (indicating properties were shown) but lack corresponding recommended homes data, suggesting data collection gaps rather than genuine absence of property showings.
+\subsubsection{Initial Merge Statistics}
 
-Further investigation of these problematic cases reveals two distinct patterns. First, 75 observations belong to \texttt{CONTROL} numbers that do have recommended homes data available, but the merge failed due to \texttt{TESTERID} mismatches or other data inconsistencies. Second, 25 observations belong to controls with no recommended homes data whatsoever, likely representing cases where property data collection was unsuccessful or incomplete.
+The merge with recommended homes data reveals several important patterns in data completeness. The analytical sample contains 3,651 unique test pairs (7,302 individual tester observations). Among these, 1,012 test pairs (27.7\%) have at least one tester for whom recommended homes data is missing. 
+
+Examining the relationship between recommendations and data availability, we find that 2,717 test pairs (74.4\%) involve cases where both testers received at least one property recommendation (i.e., neither tester has \texttt{STOTUNIT\_TOTAL = 0}). Despite agents recommending properties, 158 individual observations (2.2\% of the sample) show positive values for \texttt{STOTUNIT\_TOTAL} but lack the corresponding detailed property information in the rechomes dataset. At the test-pair level, 143 controls (3.9\%) have at least one tester who was shown properties but for whom detailed property data is missing.
+
+\subsubsection{Data Recovery Through Donor Imputation}
+
+A critical subset of the missing data represents cases where testers reported being shown only the advertised home (\texttt{STOTUNIT\_TOTAL = 1} and \texttt{SAVLBAD\_ANY = 1}) but lack corresponding property details. Investigation revealed that in many such cases, the partnered tester within the same test had recorded information about the advertised property.
+
+Our donor imputation approach leverages this within-test information:
+\begin{enumerate}
+\item Identify observations with \texttt{STOTUNIT\_TOTAL = 1}, \texttt{SAVLBAD\_ANY = 1}, and missing rechomes data
+\item For each such observation, search for records within the same \texttt{CONTROL} where \texttt{HADHOME = 1} (indicating the advertised home was recorded)
+\item When a donor record is found, copy the property information (excluding \texttt{TESTERID}) to the observation with missing data
+\end{enumerate}
+
+\begin{lstlisting}[language=R]
+# Find potential donor rows (same CONTROL, HADHOME == 1)
+donor_rows <- rechomes %>%
+  filter(CONTROL %in% missing_data$CONTROL, HADHOME == 1) %>%
+  select(-TESTERID) %>%
+  group_by(CONTROL) %>%
+  slice(1) %>%  # Take first matching row per CONTROL
+  ungroup()
+
+# Copy donor information to observations with missing data
+for (i in which(needs_rechomes_fix)) {
+  current_control <- .$CONTROL[i]
+  donor_match <- donor_rows[donor_rows$CONTROL == current_control, ]
+  
+  if (nrow(donor_match) > 0) {
+    rechomes_cols <- names(donor_match)[!names(donor_match) %in% c("CONTROL")]
+    for (col in rechomes_cols) {
+      .[[col]][i] <- donor_match[[col]][1]
+    }
+    .$has_rechomes_data[i] <- TRUE
+    rows_fixed <- rows_fixed + 1
+  }
+}
+\end{lstlisting}
+
+This recovery process successfully restored property information for 43 of 66 eligible observations (65.2\% recovery rate). The 23 unrecovered observations represent cases where no donor information was available within the test, likely because neither tester received detailed information about the advertised property. After this data recovery, the number of controls with at least one tester having recommendations but missing rechomes data decreased from 143 to 101.
 
 \subsection{Final Analytical Dataset Construction}
 
 To ensure the integrity of our paired testing analysis, we apply a final filtering step that retains only complete test pairs where both testers have recommended homes data available. This approach is conservative but necessary for analyses that require property-level comparisons between minority and white testers within the same test.
 
-The filtering process requires that observations have at least some recommended homes data (identified by non-missing values in variables beginning with ``H'') and that each \texttt{CONTROL} number includes exactly two testers with such data. This dual requirement ensures that every observation in the final dataset has a valid comparison partner within the same test.
+The filtering process requires that observations have at least some recommended homes data and that each \texttt{CONTROL} number includes exactly two testers with such data. This dual requirement ensures that every observation in the final dataset has a valid comparison partner within the same test.
 
 \begin{lstlisting}[language=R]
 sales_tester_rechomes <- sales_tester_rechomes %>%
-  filter(rowSums(!is.na(select(., starts_with("H")))) > 0) %>%
+  filter(has_rechomes_data) %>%
   group_by(CONTROL) %>%
   filter(n_distinct(TESTERID) == 2) %>%
   ungroup()
 \end{lstlisting}
 
-This final filtering step results in substantial sample reduction, yielding 5,368 observations representing 2,684 unique test pairs. The reduction from 3,651 to 2,684 test pairs (a loss of 967 pairs, or 26.5\%) reflects the requirement that both testers in each pair have recommended homes data. This attrition is substantial but necessary for analyses examining discriminatory differences in property recommendations.
+This final filtering step yields our complete analytical dataset of 18,990 property records across 2,714 unique test pairs. The reduction from 3,651 to 2,714 test pairs represents a loss of 937 pairs (25.7\%), primarily driven by the requirement that both testers in each pair must have successfully recorded property information. While this attrition is substantial, it ensures that every test in our final sample enables direct within-pair comparisons of the properties shown to minority versus white testers.
+
 
 The resulting dataset contains several categories of variables for analysis. Tester-level variables include demographics (\texttt{TAGE}, \texttt{RACE}), test outcomes (\texttt{STOTUNIT\_TOTAL}, \texttt{SAVLBAD\_ANY}), and visit characteristics (\texttt{first\_visit\_datetime}, \texttt{num\_visits}). Property-level variables from the recommended homes data include housing characteristics, location information, and pricing data, all prefixed with ``H''. Test-level identifiers include \texttt{CONTROL} (linking testers within tests) and \texttt{TESTERID} (identifying individual testers).
 

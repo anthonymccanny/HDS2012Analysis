@@ -914,9 +914,6 @@ sales_tester_rechomes <- analytic_sales_tester %>%
 write_csv(sales_tester_rechomes, "Data/sales_tester_rechomes_merged.csv")
 cat("Exported merged data to Data/sales_tester_rechomes_merged.csv\n")
 
-### CODE ONLY TESTED UP TO HERE!!!
-
-#---#
 
 # =================================================================================================== #
 # GEOCODING INTEGRATION FOR MISSING STFIDs

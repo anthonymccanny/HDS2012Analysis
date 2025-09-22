@@ -11,8 +11,8 @@ source("address_geocoding.R")
 cat("=== VALIDATING EXISTING ADDRESSES ===\n")
 
 # Load your existing data to see what we're working with
-if (file.exists("Data/sales_tester_rhgeo_merged.csv")) {
-  hds_data <- read_csv("Data/sales_tester_rhgeo_merged.csv")
+if (file.exists("Data/sales_tester_rechomes_merged.csv")) {
+  hds_data <- read_csv("Data/sales_tester_rechomes_merged.csv")
   
   # Validate address quality
   validated <- validate_addresses(
@@ -38,15 +38,15 @@ if (file.exists("Data/sales_tester_rhgeo_merged.csv")) {
 # EXAMPLE 2: GEOCODE A SMALL SAMPLE FIRST (RECOMMENDED)
 # =================================================================================================== #
 
-cat("\n=== TESTING WITH SMALL SAMPLE ===\n")
+cat("\n=== TESTING WITH SMALL SAMPLE AND TIMING ===\n")
 
 if (exists("hds_data")) {
-  # Take a small sample of rows missing STFID for testing
+  # Take a larger sample of rows missing STFID for timing test
   test_sample <- hds_data %>%
     filter(is.na(stfid) | stfid == "") %>%
-    head(10)  # Just 10 rows for testing
+    head(100)  # 100 rows for timing test
   
-validated <- validate_addresses(
+  validated <- validate_addresses(
     data = test_sample,
     address_col = "HSITEAD", 
     city_col = "HCITY",
@@ -79,6 +79,10 @@ validated <- validate_addresses(
   if (nrow(test_sample) > 0) {
     cat("Testing geocoding with", nrow(test_sample), "rows missing STFID\n")
     
+    # TIME THE GEOCODING PROCESS
+    cat("\nStarting geocoding process...\n")
+    start_time <- Sys.time()
+    
     # Run geocoding on the sample
     test_results <- geocode_and_get_stfid(
       data = test_sample,
@@ -88,6 +92,23 @@ validated <- validate_addresses(
       zip_col = "HZIP",
       existing_stfid_col = "stfid"
     )
+    
+    end_time <- Sys.time()
+    total_time <- end_time - start_time
+    
+    # Calculate timing statistics
+    avg_time_per_row <- as.numeric(total_time) / nrow(test_sample)
+    total_missing_rows <- sum(is.na(hds_data$stfid) | hds_data$stfid == "", na.rm = TRUE)
+    estimated_total_time <- avg_time_per_row * total_missing_rows
+    
+    # Show timing results
+    cat("\n=== TIMING RESULTS ===\n")
+    cat("Sample size:", nrow(test_sample), "rows\n")
+    cat("Total time:", format(total_time), "\n")
+    cat("Average time per row:", round(avg_time_per_row, 3), "seconds\n")
+    cat("Total rows missing STFID in full dataset:", total_missing_rows, "\n")
+    cat("Estimated time for full dataset:", format(as.difftime(estimated_total_time, units = "secs")), "\n")
+    cat("Estimated time in hours:", round(estimated_total_time / 3600, 2), "hours\n")
     
     # Show results
     cat("\nTest Results:\n")
@@ -100,9 +121,12 @@ validated <- validate_addresses(
         success = !is.na(final_stfid)
       )
     
-    print(results_summary)
+    print(head(results_summary, 10))  # Show first 10 results
     
-    cat("Success rate:", mean(results_summary$success, na.rm = TRUE) * 100, "%\n")
+    success_rate <- mean(results_summary$success, na.rm = TRUE) * 100
+    cat("Success rate:", round(success_rate, 1), "%\n")
+    cat("Successful geocodes:", sum(results_summary$success, na.rm = TRUE), "out of", nrow(results_summary), "\n")
+    
   } else {
     cat("No rows found missing STFID for testing\n")
   }
@@ -115,14 +139,10 @@ validated <- validate_addresses(
 # WARNING: This will make many API calls and take time!
 # Uncomment the lines below only when you're ready to process the full dataset
 
-# cat("\n=== PROCESSING FULL DATASET ===\n")
-# cat("WARNING: This will take considerable time and make many API calls\n")
-# cat("Uncomment this section when ready to run on full dataset\n")
-
-# full_results <- geocode_hds_data(
-#   input_file = "Data/sales_tester_rhgeo_merged.csv",
-#   output_file = "Data/sales_tester_rhgeo_geocoded.csv"
-# )
+ full_results <- geocode_hds_data(
+   input_file = "Data/sales_tester_rechomes_merged.csv",
+   output_file = "Data/sales_tester_rechomes_geocoded.csv"
+ )
 
 # =================================================================================================== #
 # EXAMPLE 4: MANUAL GEOCODING FOR SPECIFIC CASES

@@ -7,3 +7,5 @@ Data/HDS_technical_data/*
 .DS_Store
 Data/.DS_Store
 .Rproj.user
+api_keys.R
+Claude.md

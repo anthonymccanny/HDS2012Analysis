@@ -81,55 +81,128 @@ clean_address <- function(address, city = NULL, state = NULL, zip = NULL) {
 }
 
 # Function to get census tract from coordinates using Census API
-get_census_tract_from_coords <- function(lat, lon, vintage = "2012") {
+get_census_tract_from_coords <- function(lat, lon, vintage = "2010", debug = FALSE) {
   if (is.na(lat) || is.na(lon)) {
     return(list(state = NA, county = NA, tract = NA, stfid = NA))
   }
-  
+
   base_url <- "https://geocoding.geo.census.gov/geocoder/geographies/coordinates"
-  
-  params <- list(
-    x = lon,
-    y = lat,
-    benchmark = "Public_AR_Current",
-    vintage = paste0("Census", vintage, "_Current"),
-    format = "json"
+
+  # Try multiple vintage formats since the API might have changed
+  vintage_options <- c(
+    paste0("Census", vintage, "_Current"),
+    paste0("ACS", as.numeric(vintage) + 5, "_Current"),
+    "Current_Current"
   )
-  
-  tryCatch({
-    response <- GET(base_url, query = params)
-    
-    if (status_code(response) == 200) {
-      content <- content(response, "text", encoding = "UTF-8")
-      data <- fromJSON(content)
-      
-      if (!is.null(data$result$geographies) && 
-          length(data$result$geographies[[paste0("Census Tracts_", vintage)]]) > 0) {
-        
-        tract_info <- data$result$geographies[[paste0("Census Tracts_", vintage)]][[1]]
-        
-        state <- tract_info$STATE
-        county <- tract_info$COUNTY
-        tract <- tract_info$TRACT
-        
-        # Create STFID (State + County + Tract)
-        stfid <- paste0(state, county, tract)
-        
-        return(list(
-          state = state,
-          county = county, 
-          tract = tract,
-          stfid = stfid
-        ))
+
+  for (vintage_format in vintage_options) {
+    params <- list(
+      x = lon,
+      y = lat,
+      benchmark = "Public_AR_Current",
+      vintage = vintage_format,
+      format = "json"
+    )
+
+    tryCatch({
+      response <- GET(base_url, query = params)
+
+      if (status_code(response) == 200) {
+        content <- content(response, "text", encoding = "UTF-8")
+        data <- fromJSON(content)
+
+        if (debug) {
+          cat("\n--- Debug: API Response for vintage", vintage_format, "---\n")
+          cat("Response status:", status_code(response), "\n")
+          cat("Available geographies:", names(data$result$geographies), "\n")
+        }
+
+        # Try different key patterns for census tracts
+        tract_keys <- c(
+          "Census Tracts",
+          "2010 Census Tracts",
+          paste0("Census Tracts_", vintage),
+          "Census Tract"
+        )
+
+        for (key in tract_keys) {
+          if (!is.null(data$result$geographies[[key]])) {
+            tracts_data <- data$result$geographies[[key]]
+
+            if (debug) {
+              cat("Found key:", key, "\n")
+              cat("Data type:", class(tracts_data), "\n")
+              cat("Data structure:", str(tracts_data), "\n")
+            }
+
+            # Handle different response structures
+            tract_info <- NULL
+
+            # If it's a list of tracts
+            if (is.list(tracts_data) && length(tracts_data) > 0) {
+              # If it's a named list with tract info
+              if (!is.null(names(tracts_data))) {
+                # Check if it has the expected fields directly
+                if (all(c("STATE", "COUNTY", "TRACT") %in% names(tracts_data))) {
+                  tract_info <- tracts_data
+                } else if (length(tracts_data) > 0 && is.list(tracts_data[[1]])) {
+                  # It might be a list of tract records
+                  tract_info <- tracts_data[[1]]
+                }
+              } else if (length(tracts_data) > 0) {
+                # Unnamed list - take first element
+                tract_info <- tracts_data[[1]]
+              }
+            }
+
+            # Extract fields if we found valid tract info
+            if (!is.null(tract_info) && is.list(tract_info)) {
+              if (debug) {
+                cat("Tract info fields:", names(tract_info), "\n")
+              }
+
+              state <- tract_info$STATE
+              county <- tract_info$COUNTY
+              tract <- tract_info$TRACT
+
+              # Also try alternative field names
+              if (is.null(state)) state <- tract_info$state
+              if (is.null(county)) county <- tract_info$county
+              if (is.null(tract)) tract <- tract_info$tract
+
+              # Create STFID (State + County + Tract)
+              if (!is.null(state) && !is.null(county) && !is.null(tract)) {
+                stfid <- paste0(state, county, tract)
+
+                if (debug) {
+                  cat("Successfully extracted STFID:", stfid, "\n")
+                }
+
+                return(list(
+                  state = state,
+                  county = county,
+                  tract = tract,
+                  stfid = stfid
+                ))
+              } else if (debug) {
+                cat("Missing required fields. State:", state, "County:", county, "Tract:", tract, "\n")
+              }
+            }
+          }
+        }
       }
-    }
-    
-    return(list(state = NA, county = NA, tract = NA, stfid = NA))
-    
-  }, error = function(e) {
-    warning(paste("Error in Census API call:", e$message))
-    return(list(state = NA, county = NA, tract = NA, stfid = NA))
-  })
+    }, error = function(e) {
+      if (debug) {
+        cat("Error with vintage", vintage_format, ":", e$message, "\n")
+      }
+    })
+  }
+
+  if (debug) {
+    cat("Failed to get census tract for coordinates:", lat, lon, "\n")
+  }
+
+  return(list(state = NA, county = NA, tract = NA, stfid = NA))
 }
 
 # Function to geocode addresses using multiple services
@@ -256,10 +329,12 @@ geocode_and_get_stfid <- function(data,
       geocode_result <- geocode_address_multi_service(clean_addr)
       
       if (!is.na(geocode_result$lat)) {
-        # Get census tract from coordinates
+        # Get census tract from coordinates (with debug enabled for first 10)
         census_result <- get_census_tract_from_coords(
-          geocode_result$lat, 
-          geocode_result$lon
+          geocode_result$lat,
+          geocode_result$lon,
+          vintage = "2010",
+          debug = (i <= 10)
         )
         
         # Update the main dataframe
@@ -336,7 +411,7 @@ geocode_and_get_stfid <- function(data,
       zip_info <- zip_geocodes[zip_geocodes$zip == zip_code, ]
       
       if (nrow(zip_info) > 0 && !is.na(zip_info$lat[1])) {
-        census_result <- get_census_tract_from_coords(zip_info$lat[1], zip_info$lon[1])
+        census_result <- get_census_tract_from_coords(zip_info$lat[1], zip_info$lon[1], vintage = "2010")
         
         if (!is.na(census_result$stfid)) {
           df[df$row_id == row_idx, c(
@@ -489,13 +564,3 @@ validate_addresses <- function(data, address_col, city_col = NULL, zip_col = NUL
   
   return(df)
 }
-
-cat("=== ADDRESS GEOCODING FUNCTIONS LOADED ===\n")
-cat("Main function: geocode_and_get_stfid()\n")
-cat("HDS-specific function: geocode_hds_data()\n")
-cat("Address validation: validate_addresses()\n")
-cat("\nExample usage:\n")
-cat("# For HDS data:\n")
-cat("result <- geocode_hds_data()\n")
-cat("\n# For general data:\n") 
-cat("result <- geocode_and_get_stfid(your_data, 'address_col', 'city_col', 'state_col', 'zip_col')\n")

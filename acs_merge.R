@@ -1,5 +1,4 @@
 # ACS 2008-2012 5-Year Block Group Data Matcher
-# Replicates Christensen & Timmins (2022) ACS data linking methodology
 # Author: Anthony McCanny
 # Date: 2025-09-21
 # Purpose: Pull ACS block group data and merge with existing geocoded HDS data
@@ -25,8 +24,10 @@ for (pkg in packages) {
 # Load API keys
 source("api_keys.R")
 
-# Set Census API key for tidycensus
-census_api_key(CENSUS_API_KEY, install = TRUE)
+# Set Census API key for tidycensus only if not already set
+if (is.null(Sys.getenv("CENSUS_API_KEY")) || Sys.getenv("CENSUS_API_KEY") == "") {
+  census_api_key(CENSUS_API_KEY, install = TRUE)
+}
 
 # =================================================================================================== #
 # ACS VARIABLE DEFINITIONS (CHRISTENSEN & TIMMINS 2022)
@@ -53,8 +54,8 @@ acs_variables <- c(
   # Household Type (Table B11001 - Household Type)
   total_households = "B11001_001",   # Total households
   family_households = "B11001_002",  # Family households
-  single_parent_male = "B11001_006",   # Male householder, no spouse, with children
-  single_parent_female = "B11001_016", # Female householder, no spouse, with children
+  single_parent_male = "B11001_005",   # Male householder, no spouse, with children
+  single_parent_female = "B11001_006", # Female householder, no spouse, with children
 
   # Housing Tenure (Table B25003 - Tenure)
   tenure_total = "B25003_001",       # Total occupied housing units
@@ -73,16 +74,14 @@ acs_variables <- c(
 # =================================================================================================== #
 
 get_acs_data_for_geoids <- function(geoid_list, year = 2012) {
-  """
-  Pull ACS 2008-2012 5-year data for specific block group GEOIDs
+  # Pull ACS 2008-2012 5-year data for specific block group GEOIDs
 
-  Args:
-    geoid_list: Vector of 12-digit block group GEOIDs
-    year: ACS year (2012 for 2008-2012 5-year estimates)
+  # Args:
+  #   geoid_list: Vector of 12-digit block group GEOIDs
+  #   year: ACS year (2012 for 2008-2012 5-year estimates)
 
-  Returns:
-    Tibble with processed ACS variables for the specified block groups
-  """
+  # Returns:
+  #   Tibble with processed ACS variables for the specified block groups
 
   # Extract unique states from GEOIDs
   unique_states <- unique(str_sub(geoid_list, 1, 2))
@@ -96,7 +95,7 @@ get_acs_data_for_geoids <- function(geoid_list, year = 2012) {
 
     # Get all block group data for this state
     state_data <- get_acs(
-      geography = "block group",
+      geography = "tract",
       variables = acs_variables,
       state = state,
       year = year,
@@ -110,11 +109,10 @@ get_acs_data_for_geoids <- function(geoid_list, year = 2012) {
 
   # Filter to only the GEOIDs we need and process variables
   filtered_data <- all_data %>%
-    mutate(geoid_12 = str_pad(GEOID, 12, "left", "0")) %>%
-    filter(geoid_12 %in% geoid_list) %>%
+    filter(GEOID %in% geoid_list) %>%
     process_acs_variables()
 
-  cat(sprintf("Retrieved data for %d of %d requested block groups\n",
+  cat(sprintf("Retrieved data for %d of %d requested tracts\n",
               nrow(filtered_data), length(unique(geoid_list))))
 
   return(filtered_data)
@@ -125,18 +123,14 @@ get_acs_data_for_geoids <- function(geoid_list, year = 2012) {
 # =================================================================================================== #
 
 process_acs_variables <- function(acs_raw) {
-  """
-  Calculate derived variables matching Christensen & Timmins (2022) methodology
-  """
+  
+  # Calculate derived variables matching Christensen & Timmins (2022) methodology
+  
 
   acs_processed <- acs_raw %>%
     # Clean GEOID to ensure 12 digits
-    mutate(
-      geoid_12 = str_pad(GEOID, 12, "left", "0"),
-      state_fips = str_sub(geoid_12, 1, 2),
-      county_fips = str_sub(geoid_12, 3, 5),
-      tract_fips = str_sub(geoid_12, 6, 11),
-      blockgroup_fips = str_sub(geoid_12, 12, 12)
+    rename(
+      tract_geoid = GEOID
     ) %>%
 
     # Calculate Christensen & Timmins variables
@@ -178,7 +172,7 @@ process_acs_variables <- function(acs_raw) {
 
     # Select final columns matching Christensen & Timmins variable names
     select(
-      geoid_12, NAME, state_fips, county_fips, tract_fips, blockgroup_fips,
+      tract_geoid, NAME,
       poverty_rate, college_graduate_rate, high_skilled_rate,
       single_parent_rate, ownership_rate,
       percent_white, percent_black, percent_asian, percent_hispanic,
@@ -194,34 +188,44 @@ process_acs_variables <- function(acs_raw) {
 # MERGE FUNCTION FOR HDS DATA
 # =================================================================================================== #
 
-merge_hds_with_acs <- function(hds_data, geoid_col = "final_stfid") {
-  """
-  Merge HDS property data with ACS block group data
+merge_hds_with_acs <- function(hds_data, geoid_col = "tract_geoid") {
+  
+  # Merge HDS property data with ACS tract data
 
-  Args:
-    hds_data: Data frame with HDS property data including geocoded block group IDs
-    geoid_col: Column name containing 12-digit block group GEOIDs
+  # Args:
+  #   hds_data: Data frame with HDS property data including geocoded block group IDs
+  #   geoid_col: Column name containing 11-digit tract GEOIDs
 
-  Returns:
-    Data frame with HDS data merged with ACS variables
-  """
+  # Returns:
+  #   Data frame with HDS data merged with ACS variables
+  
 
   # Extract unique GEOIDs from HDS data
   geoid_list <- hds_data %>%
     pull(!!sym(geoid_col)) %>%
     unique() %>%
-    na.omit() %>%
-    str_pad(12, "left", "0")  # Ensure 12-digit format
+    na.omit() 
 
-  cat(sprintf("Found %d unique block groups in HDS data\n", length(geoid_list)))
+  cat(sprintf("Found %d unique tracts in HDS data\n", length(geoid_list)))
 
   # Get ACS data for these specific block groups
-  acs_data <- get_acs_data_for_geoids(geoid_list)
+  acs_data <- get_acs_data_for_geoids(geoid_list, year = 2012)
+
+  # Check matching GEOIDs between ACS and HDS data
+  matched_geoids <- intersect(acs_data$tract_geoid, hds_data$tract_geoid)
+  unmatched_geoids <- setdiff(hds_data[[geoid_col]], acs_data$tract_geoid)
+  cat(sprintf("Matched GEOIDs: %d\n", length(matched_geoids)))
+  cat(sprintf("Unmatched GEOIDs: %d\n", length(unmatched_geoids)))
+  if (length(unmatched_geoids) > 0) {
+    cat("Unmatched GEOIDs (first 10):\n")
+    print(head(unmatched_geoids, 10))
+  }
 
   # Merge with HDS data
   merged_data <- hds_data %>%
-    mutate(geoid_12 = str_pad(!!sym(geoid_col), 12, "left", "0")) %>%
-    left_join(acs_data, by = "geoid_12")
+    left_join(acs_data, by = geoid_col)
+
+  
 
   # Report merge success
   n_matched <- sum(!is.na(merged_data$poverty_rate))
@@ -232,27 +236,55 @@ merge_hds_with_acs <- function(hds_data, geoid_col = "final_stfid") {
   return(merged_data)
 }
 
+
 # =================================================================================================== #
-# EXAMPLE USAGE
+# EXAMPLE: RUN THE ACS MATCHING PROCESS
 # =================================================================================================== #
 
-# Example workflow:
-#
-# # 1. Load your geocoded HDS data
-# hds_data <- read_csv("Data/hds_geocoded_data.csv")
-#
+# # 1. Load your geocoded HDS data (sample for testing)
+# cat("Loading HDS data sample...\n")
+# hds_data_full <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
+
+# # Take a sample of 100 rows for testing
+# set.seed(123)  # For reproducible sampling
+# hds_data <- hds_data_full %>%
+#   slice_sample(n = min(100, nrow(hds_data_full))) %>%
+#   mutate(tract_geoid = str_sub(blockgroup_geoid, 1, 11))
+
+# cat(sprintf("Using sample of %d rows from %d total rows\n", 
+#             nrow(hds_data), nrow(hds_data_full)))
+
 # # 2. Merge with ACS data
-# hds_with_acs <- merge_hds_with_acs(hds_data, geoid_col = "final_stfid")
-#
-# # 3. Save results
-# write_csv(hds_with_acs, "Data/hds_data_with_acs_variables.csv")
-#
+# cat("Starting ACS data merge...\n")
+# hds_with_acs <- merge_hds_with_acs(hds_data, geoid_col = "tract_geoid")
+
+# # # 3. Save results
+# # output_file <- "Data/hds_sample_with_acs_variables.csv"
+# # write_csv(hds_with_acs, output_file)
+# # cat(sprintf("Results saved to: %s\n", output_file))
+
 # # 4. Summary of ACS variables
+# cat("\nSummary of ACS variables:\n")
 # hds_with_acs %>%
 #   select(poverty_rate, college_graduate_rate, high_skilled_rate,
 #          single_parent_rate, ownership_rate, percent_white, percent_black,
 #          percent_asian, percent_hispanic) %>%
-#   summary()
+#   summary() %>%
+#   print()
 
-cat("ACS Block Group Matcher loaded successfully.\n")
-cat("Use merge_hds_with_acs() to merge your HDS data with ACS variables.\n")
+# cat("\nACS matching process completed successfully!\n")
+
+
+# available_variables <- tidycensus::load_variables(2012, "acs5")
+# library(stringdist)
+
+# # Get ACS variable codes from acs_variables
+# acs_codes <- unname(acs_variables)
+
+# # Fuzzy match: subset available_variables to those with codes close to acs_codes
+# matched_vars <- available_variables %>%
+#   filter(
+#     sapply(name, function(nm) min(stringdist::stringdist(nm, acs_codes, method = "jw")) < 0.1)
+#   )
+
+# print(matched_vars)

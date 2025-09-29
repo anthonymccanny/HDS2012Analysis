@@ -8,4 +8,8 @@ Data/HDS_technical_data/*
 Data/.DS_Store
 .Rproj.user
 api_keys.R
-Claude.md
+CLAUDE.md
+address_geocoding_old.R
+address_geocoding_with_lat_long.R
+comment.*
+HDS2012Analysis.Rproj

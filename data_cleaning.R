@@ -543,11 +543,6 @@ sales_final <- sales_with_time %>%
   select(-RACEID)
 
 cat("Final sales dataset:", nrow(sales_final), "rows (one per tester per control)\n")
-sales_with_time %>%
-  group_by(CONTROL) %>%
-  filter(n_distinct(TESTERID) == 2 & !is.na(am_indicator)) %>%
-  distinct(CONTROL) %>%
-  nrow()
 
 # Count distinct controls with non-missing outcomes and two testers, by first two letters
 outcome_summary <- sales_final %>%
@@ -672,7 +667,7 @@ rhgeo_deduplicated <- rhgeo %>%
         HSITEAD %in% c("unknown", "did not provide", "UNKNOWN", "MODEL HOME") |
         str_detect(
           str_squish(str_to_lower(HSITEAD)),
-          regex("\\b(unknown|not provide(?:d)?|n/?a|model home|no address|none|blank|missing|refuse)\\b")
+          regex("\\b(unknown|not provide(?:d)?|n/?a|model home|no address|none|blank|missing|refuse|did not get)\\b")
         ) |
         str_detect(HSITEAD, "^\\s*$|^-+$|^0+$") |
         nchar(trimws(HSITEAD)) <= 3
@@ -909,434 +904,71 @@ sales_tester_rechomes <- analytic_sales_tester %>%
     .
   }
     
-
 # Export merged dataset
 write_csv(sales_tester_rechomes, "Data/sales_tester_rechomes_merged.csv")
 cat("Exported merged data to Data/sales_tester_rechomes_merged.csv\n")
 
 
 # =================================================================================================== #
-# GEOCODING INTEGRATION FOR MISSING STFIDs
+# GEOCODING 
 # =================================================================================================== #
 
-cat("=== GEOCODING MISSING STFIDs ===\n")
+cat("=== GEOCODING  ===\n")
 
-# Option to run geocoding for missing STFIDs
-# Set this to TRUE if you want to run geocoding (warning: takes time!)
-RUN_GEOCODING <- FALSE
-
-if (RUN_GEOCODING) {
-  cat("Running geocoding for missing STFIDs...\n")
-  
-  # Source the geocoding functions
-  if (file.exists("address_geocoding.R")) {
-    source("address_geocoding.R")
-    
-    # Run geocoding on the merged dataset
-    geocoded_data <- geocode_and_get_stfid(
-      data = sales_tester_rhgeo,
-      address_col = "HSITEAD",
-      city_col = "HCITY", 
-      state_col = "HSTATE",
-      zip_col = "HZIP",
-      existing_stfid_col = "stfid"
-    )
-    
-    # Save geocoded results
-    write_csv(geocoded_data, "Data/sales_tester_rhgeo_geocoded.csv")
-    cat("Exported geocoded data to Data/sales_tester_rhgeo_geocoded.csv\n")
-    
-    # Update the main dataset variable for further analysis
-    sales_tester_rhgeo <- geocoded_data
-    
-  } else {
-    cat("Geocoding script not found. Please ensure address_geocoding.R exists.\n")
-    cat("To enable geocoding, set RUN_GEOCODING <- TRUE and ensure address_geocoding.R is available.\n")
-  }
-} else {
-  cat("Geocoding disabled. To enable:\n")
-  cat("1. Set RUN_GEOCODING <- TRUE above\n") 
-  cat("2. Ensure address_geocoding.R script exists\n")
-  cat("3. Re-run this section\n")
-  cat("Note: Geocoding makes many API calls and takes considerable time.\n")
-}
-# =================================================================================================== #
-# ROUGH CODE
-# =================================================================================================== #
+source("address_geocoding.R")
 
 
-# Function to examine data structure and key variables
-examine_data <- function(data, name) {
-  cat("\n=== Examining", name, "===\n")
-  cat("Dimensions:", dim(data)[1], "rows x", dim(data)[2], "columns\n")
-  cat("Column names:", paste(names(data), collapse = ", "), "\n")
-  
-  # Check for CONTROL and TESTERID variables
-  if ("CONTROL" %in% names(data)) {
-    cat("CONTROL variable found - unique values:", length(unique(data$CONTROL)), "\n")
-    cat("CONTROL sample values:", paste(head(unique(data$CONTROL), 10), collapse = ", "), "\n")
-  } else {
-    cat("WARNING: CONTROL variable not found in", name, "\n")
-  }
-  
-  if ("TESTERID" %in% names(data)) {
-    cat("TESTERID variable found - unique values:", length(unique(data$TESTERID)), "\n")
-    cat("TESTERID sample values:", paste(head(unique(data$TESTERID), 10), collapse = ", "), "\n")
-  } else {
-    cat("WARNING: TESTERID variable not found in", name, "\n")
-  }
-  
-  # Check for duplicates
-  if ("CONTROL" %in% names(data) && "TESTERID" %in% names(data)) {
-    duplicate_count <- sum(duplicated(data[c("CONTROL", "TESTERID")]))
-    cat("Duplicate CONTROL-TESTERID pairs:", duplicate_count, "\n")
-  }
-  
-  cat("Sample of first 3 rows:\n")
-  print(head(data, 3))
-  cat("\n")
-}
-
-# Read the five main files and filter to sales data immediately
-cat("=== READING SAS FILES AND FILTERING TO SALES DATA ===\n")
-
-# Read assignment file and filter to sales + RELEASE="1"
-assignment_raw <- read_sas_safe(file.path(raw_data_path, "assignment.sas7bdat"))
-assignment <- assignment_raw %>%
-  filter(grepl("-S[A-Z]-", CONTROL)) %>%
-  filter(RELEASE == "1" & !is.na(TESTERID))
-cat("Assignment: ", nrow(assignment_raw), "→", nrow(assignment), "rows after sales + RELEASE='1' filter\n")
-
-# Read taf file and filter to sales
-taf_raw <- read_sas_safe(file.path(raw_data_path, "taf.sas7bdat"))
-taf <- taf_raw %>%
-  filter(grepl("-S[A-Z]-", CONTROL))
-cat("TAF: ", nrow(taf_raw), "→", nrow(taf), "rows after sales filter\n")
-
-# Read sales file (already sales data by definition)
-sales <- read_sas_safe(file.path(raw_data_path, "sales.sas7bdat"))
-cat("Sales: ", nrow(sales), "rows (no filter needed)\n")
-
-# Read tester file (no filtering needed - tester-specific data)
-tester <- read_sas_safe(file.path(raw_data_path, "tester_censored.sas7bdat")) %>%
-    rename(TESTERID = TesterID)  # Standardize variable name
-cat("Tester: ", nrow(tester), "rows\n")
-
-# Read rhgeo file and filter to sales
-rhgeo_raw <- read_sas_safe(file.path(raw_data_path, "rhgeo.sas7bdat"))
-rhgeo <- rhgeo_raw %>%
-  filter(grepl("-S[A-Z]-", CONTROL))
-cat("RHGEO: ", nrow(rhgeo_raw), "→", nrow(rhgeo), "rows after sales filter\n")
-
-# Read rechomes file and filter to sales
-rechomes_raw <- read_sas_safe(file.path(raw_data_path, "rechomes.sas7bdat"))
-rechomes <- rechomes_raw %>%
-    filter(grepl("-S[A-Z]-", CONTROL))
-cat("RECHOMES: ", nrow(rechomes_raw), "→", nrow(rechomes), "rows after sales filter\n")
-
-# Check if all files were read successfully
-files_read <- list(assignment = assignment, taf = taf, sales = sales, tester = tester, rhgeo = rhgeo)
-failed_files <- names(files_read)[sapply(files_read, is.null)]
-
-if (length(failed_files) > 0) {
-  cat("ERROR: Failed to read the following files:", paste(failed_files, collapse = ", "), "\n")
-  stop("Cannot proceed with missing data files")
-}
-
-cat("\n=== DATA STRUCTURE EXAMINATION ===\n")
-
-# Examine each dataset
-examine_data(assignment, "assignment")
-examine_data(taf, "taf") 
-examine_data(sales, "sales")
-examine_data(tester, "tester")
-examine_data(rhgeo, "rhgeo")
-
-
-# Fix tester variable name to match others
-cat("\n=== STANDARDIZING VARIABLE NAMES ===\n")
-if ("TesterID" %in% names(tester)) {
-  tester <- tester %>% rename(TESTERID = TesterID)
-  cat("Renamed 'TesterID' to 'TESTERID' in tester file\n")
-}
-
-
-
-# ===========================
-# CHECK FOR OTHER DUPLICATES
-# ===========================
-cat("\n=== CHECKING FOR UNEXPECTED DUPLICATES ===\n")
-
-# Check assignment duplicates
-assignment_dups <- assignment %>%
-  group_by(CONTROL, TESTERID) %>%
-  summarise(count = n(), .groups = 'drop') %>%
-  filter(count > 1)
-cat("Assignment duplicates (CONTROL-TESTERID):", nrow(assignment_dups), "\n")
-
-# Check how many testers per control
-testers_per_control <- sales %>%
-    group_by(CONTROL) %>%
-    summarise(num_testers = n_distinct(TESTERID), .groups = 'drop')
-
-cat("\nDistribution of testers per control:\n")
-testers_table <- table(testers_per_control$num_testers)
-print(testers_table)
-
-# More detailed summary
-cat("\nSummary statistics of testers per control:\n")
-summary_stats <- summary(testers_per_control$num_testers)
-print(summary_stats)
-
-# Visual check of the first few controls with their tester counts
-cat("\nSample of controls and their tester counts:\n")
-print(head(testers_per_control, 10))
-
-# Check sales duplicates  
-sales_dups <- sales %>%
-  group_by(CONTROL, TESTERID) %>%
-  summarise(count = n(), .groups = 'drop') %>%
-  filter(count > 1)
-cat("Sales duplicates (CONTROL-TESTERID):", nrow(sales_dups), "\n")
-
-# Check tester duplicates
-tester_dups <- tester %>%
-  group_by(TESTERID) %>%
-  summarise(count = n(), .groups = 'drop') %>%
-  filter(count > 1)
-cat("Tester duplicates (TESTERID):", nrow(tester_dups), "\n")
-
-# Check TAF duplicates
-taf_dups <- taf %>%
-  group_by(CONTROL) %>%
-  summarise(count = n(), .groups = 'drop') %>%
-  filter(count > 1)
-cat("TAF duplicates (CONTROL):", nrow(taf_dups), "\n")
-
-# Show TAF duplicates in detail
-if(nrow(taf_dups) > 0) {
-    cat("\nDetailed examination of TAF duplicates:\n")
-    taf_duplicate_controls <- taf_dups$CONTROL
-    
-    taf_duplicates <- taf %>%
-        filter(CONTROL %in% taf_duplicate_controls) %>%
-        arrange(CONTROL)
-    
-    print(taf_duplicates)
-    
-    # Show differences between duplicates for first few controls
-    cat("\nDifferences in first few duplicate controls:\n")
-    for(control in head(taf_duplicate_controls, 3)) {
-        cat("\nExamining CONTROL:", control, "\n")
-        taf_subset <- taf %>% filter(CONTROL == control)
-        
-        # Find columns with differences
-        diff_cols <- names(taf_subset)[sapply(names(taf_subset), function(col) {
-            length(unique(taf_subset[[col]])) > 1 && !all(is.na(taf_subset[[col]]))
-        })]
-        
-        if(length(diff_cols) > 0) {
-            cat("Columns with differences:", paste(diff_cols, collapse=", "), "\n")
-            print(taf_subset[, c("CONTROL", diff_cols)])
-        } else {
-            cat("All columns have identical values\n")
-        }
-    }
-}
-
-# RHGEO duplicates are expected (multiple recommended homes per tester per control)
-# Analyze RHGEO: expected to have multiple entries per CONTROL-TESTERID
-rhgeo_summary <- rhgeo %>%
-    group_by(CONTROL, TESTERID) %>%
-    summarise(recommended_homes = n(), .groups = 'drop')
-cat("RHGEO: Average recommended homes per tester per control:", round(mean(rhgeo_summary$recommended_homes), 2), "\n")
-
-# Distribution of testers per control
-tester_distribution <- rhgeo %>%
-    group_by(CONTROL) %>%
-    summarise(testers_count = n_distinct(TESTERID), .groups = 'drop')
-
-cat("\nDistribution of unique TESTERIDs per CONTROL:\n")
-print(table(tester_distribution$testers_count))
-cat("\nSummary statistics of TESTERIDs per CONTROL:\n")
-print(summary(tester_distribution$testers_count))
-
-# Sample of controls with their tester counts
-cat("\nSample of controls with their tester counts:\n")
-print(head(tester_distribution, 10))
-
-if (nrow(assignment_dups) > 0 || nrow(sales_dups) > 0 || nrow(tester_dups) > 0 || nrow(taf_dups) > 0) {
-    cat("\nWARNING: Unexpected duplicates found - please review\n")
-}
-
-# ===========================
-# MERGING STRATEGY
-# ===========================
-cat("\n=== IMPLEMENTING MERGING STRATEGY ===\n")
-
-# Start with assignment as base (has CONTROL-TESTERID linkages)
-cat("Step 1: Starting with assignment as base dataset...\n")
-base_data <- assignment
-
-# Add tester information (match by TESTERID - tester-specific data)
-cat("Step 2: Adding tester information by TESTERID...\n")
-base_data <- base_data %>%
-  left_join(tester, by = "TESTERID", suffix = c("", "_tester"))
-cat("  After tester merge:", nrow(base_data), "rows\n")
-
-# Add sales information (match by CONTROL and TESTERID)
-cat("Step 3: Adding sales information by CONTROL and TESTERID...\n")
-base_data <- base_data %>%
-  left_join(sales, by = c("CONTROL", "TESTERID"), suffix = c("", "_sales"))
-cat("  After sales merge:", nrow(base_data), "rows\n")
-
-# Add TAF information (match by CONTROL - applies to all testers in that control)
-cat("Step 4: Adding TAF information by CONTROL (control-level data)...\n")
-base_data <- base_data %>%
-  left_join(taf, by = "CONTROL", suffix = c("", "_taf"))
-cat("  After TAF merge:", nrow(base_data), "rows\n")
-
-# ===========================
-# INVESTIGATE DUPLICATES BEFORE RHGEO MERGE
-# ===========================
-cat("\n=== INVESTIGATING DUPLICATES IN BASE_DATA BEFORE RHGEO ===\n")
-
-# Check for duplicates in base_data (before rhgeo merge)
-base_data_dups <- base_data %>%
-  group_by(CONTROL, TESTERID) %>%
-  summarise(count = n(), .groups = 'drop') %>%
-  filter(count > 1)
-
-cat("Base data duplicates (CONTROL-TESTERID) before rhgeo:", nrow(base_data_dups), "\n")
-
-if (nrow(base_data_dups) > 0) {
-  cat("Sample of duplicate CONTROL-TESTERID combinations:\n")
-  print(head(base_data_dups, 10))
-  
-  # Examine one specific duplicate case in detail
-  sample_dup <- base_data_dups[1,]
-  cat("\nDetailed examination of first duplicate case:\n")
-  cat("CONTROL:", sample_dup$CONTROL, "TESTERID:", sample_dup$TESTERID, "Count:", sample_dup$count, "\n")
-  
-  detailed_case <- base_data %>%
-    filter(CONTROL == sample_dup$CONTROL, TESTERID == sample_dup$TESTERID) %>%
-    select(CONTROL, TESTERID, contains("RELEASE"), contains("DATE"), contains("ID"))
-  
-  cat("Rows for this case:\n")
-  print(detailed_case)
-  
-  # Check which source files contribute to duplicates
-  cat("\nChecking source of duplicates by examining key variables:\n")
-  
-  # Check if duplicates come from assignment file
-  assignment_contribution <- assignment %>%
-    group_by(CONTROL, TESTERID) %>%
-    summarise(assignment_count = n(), .groups = 'drop') %>%
-    filter(assignment_count > 1)
-  cat("Duplicates from assignment file:", nrow(assignment_contribution), "\n")
-  
-  # Check if duplicates come from sales file  
-  sales_contribution <- sales %>%
-    group_by(CONTROL, TESTERID) %>%
-    summarise(sales_count = n(), .groups = 'drop') %>%
-    filter(sales_count > 1)
-  cat("Duplicates from sales file:", nrow(sales_contribution), "\n")
-  
-  # Check if duplicates come from tester file
-  tester_contribution <- tester %>%
-    group_by(TESTERID) %>%
-    summarise(tester_count = n(), .groups = 'drop') %>%
-    filter(tester_count > 1)
-  cat("Duplicates from tester file:", nrow(tester_contribution), "\n")
-}
-
-# ===========================
-# CREATE FINAL DATASETS
-# ===========================
-
-# Dataset 1: WITH rhgeo (each row = recommended home per tester per test)
-cat("\n=== CREATING DATASET 1: WITH RHGEO (recommended homes level) ===\n")
-merged_with_rhgeo <- base_data %>%
-  inner_join(rhgeo, by = c("CONTROL", "TESTERID"), suffix = c("", "_rhgeo"))
-
-cat("Dataset 1 dimensions:", nrow(merged_with_rhgeo), "rows x", ncol(merged_with_rhgeo), "columns\n")
-cat("This dataset has one row per recommended home per tester per test\n")
-
-# Dataset 2: WITHOUT rhgeo (each row = test information)
-cat("\n=== CREATING DATASET 2: WITHOUT RHGEO (test level) ===\n")
-merged_without_rhgeo <- base_data
-
-cat("Dataset 2 dimensions:", nrow(merged_without_rhgeo), "rows x", ncol(merged_without_rhgeo), "columns\n")
-cat("This dataset has one row per tester per test\n")
-
-# ===========================
-# VALIDATE DATA INTEGRITY
-# ===========================
-cat("\n=== VALIDATING DATA INTEGRITY ===\n")
-
-# Check coverage
-cat("Data coverage validation:\n")
-cat("  Dataset 1 (with rhgeo) covers", n_distinct(merged_with_rhgeo$CONTROL), "unique tests\n")
-cat("  Dataset 1 (with rhgeo) covers", n_distinct(merged_with_rhgeo$TESTERID), "unique testers\n")
-cat("  Dataset 2 (without rhgeo) covers", n_distinct(merged_without_rhgeo$CONTROL), "unique tests\n")
-cat("  Dataset 2 (without rhgeo) covers", n_distinct(merged_without_rhgeo$TESTERID), "unique testers\n")
-
-# Check for missing key identifiers
-missing_checks <- list(
-  "Dataset 1 - Missing CONTROL" = sum(is.na(merged_with_rhgeo$CONTROL) | merged_with_rhgeo$CONTROL == ""),
-  "Dataset 1 - Missing TESTERID" = sum(is.na(merged_with_rhgeo$TESTERID) | merged_with_rhgeo$TESTERID == ""),
-  "Dataset 2 - Missing CONTROL" = sum(is.na(merged_without_rhgeo$CONTROL) | merged_without_rhgeo$CONTROL == ""),
-  "Dataset 2 - Missing TESTERID" = sum(is.na(merged_without_rhgeo$TESTERID) | merged_without_rhgeo$TESTERID == "")
-)
-
-cat("\nMissing key identifiers:\n")
-for (check_name in names(missing_checks)) {
-  cat(" ", check_name, ":", missing_checks[[check_name]], "\n")
-}
-
-# ===========================
-# EXPORT DATASETS
-# ===========================
-cat("\n=== EXPORTING DATASETS ===\n")
-
-# Create Data directory if it doesn't exist
-if (!dir.exists("Data")) {
-  dir.create("Data")
-}
-
-# Export to CSV
-write_csv(merged_with_rhgeo, "Data/merged_hds_with_rhgeo.csv")
-write_csv(merged_without_rhgeo, "Data/merged_hds_without_rhgeo.csv")
-
-# Export to RDS
-saveRDS(merged_with_rhgeo, "Data/merged_hds_with_rhgeo.rds")
-saveRDS(merged_without_rhgeo, "Data/merged_hds_without_rhgeo.rds")
-
-cat("Successfully exported:\n")
-cat("  Data/merged_hds_with_rhgeo.csv (", nrow(merged_with_rhgeo), "rows)\n")
-cat("  Data/merged_hds_with_rhgeo.rds (", nrow(merged_with_rhgeo), "rows)\n")
-cat("  Data/merged_hds_without_rhgeo.csv (", nrow(merged_without_rhgeo), "rows)\n")
-cat("  Data/merged_hds_without_rhgeo.rds (", nrow(merged_without_rhgeo), "rows)\n")
-
-# Create sales type indicator for reference
-base_data <- base_data %>%
+# Ensure UTF-8 encoding for address fields before geocoding
+sales_tester_rechomes <- sales_tester_rechomes %>%
   mutate(
-    sales_type = case_when(
-      grepl("-SA-", CONTROL) ~ "SA_Asian",
-      grepl("-SB-", CONTROL) ~ "SB_Black", 
-      grepl("-SH-", CONTROL) ~ "SH_Hispanic",
-      TRUE ~ "Other_Sales"
-    )
+    HSITEAD = iconv(HSITEAD, to = "UTF-8", sub = ""),
+    HCITY = iconv(HCITY, to = "UTF-8", sub = ""),
+    HSTATE = iconv(HSTATE, to = "UTF-8", sub = ""),
+    HZIP = iconv(HZIP, to = "UTF-8", sub = "")
   )
 
-# Show final breakdown
-sales_breakdown <- base_data %>%
-  count(sales_type, sort = TRUE)
-cat("Sales type breakdown:\n")
-print(sales_breakdown)
+# Run geocoding on sales_tester_rechomes data
+sales_tester_rechomes_geocoded <- geocode_addresses(
+  df = sales_tester_rechomes,
+  street_col = "HSITEAD",
+  city_col = "HCITY", 
+  state_col = "HSTATE",
+  postalcode_col = "HZIP",
+  geoid_col = "stfid"
+)
 
-cat("\n=== DATA CLEANING AND MERGING COMPLETE ===\n")
-cat("Filtered to sales data only (SA/SB/SH) with RELEASE='1'\n")
-cat("Final datasets contain", nrow(merged_with_rhgeo), "and", nrow(merged_without_rhgeo), "rows respectively\n")
+# Export the geocoded data
+write_csv(sales_tester_rechomes_geocoded, "Data/sales_tester_rechomes_geocoded.csv")
+cat("Exported geocoded data to Data/sales_tester_rechomes_geocoded.csv\n")
 
+# =================================================================================================== #
+# MERGE WITH ACS DATA
+# =================================================================================================== #
 
+# Reload CSV from file in case you want to run the file from here. 
+sales_tester_rechomes_geocoded <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
+
+cat("=== MERGING WITH ACS DATA ===\n")
+
+source("acs_merge.R")
+
+# Prepare tract GEOID for merging
+sales_tester_rechomes_geocoded <- sales_tester_rechomes_geocoded %>%
+  mutate(tract_geoid = str_sub(blockgroup_geoid, 1, 11))
+
+# Merge in the ACS data using the helper function
+sales_tester_rechomes_geocoded_acs <- merge_hds_with_acs(sales_tester_rechomes_geocoded , geoid_col = "tract_geoid")
+cat("\nACS matching process completed successfully!\n")
+
+# Print summary of final dataset
+controls_with_complete_outcomes <- sales_tester_rechomes_geocoded_acs %>%
+  filter(!is.na(STOTUNIT_TOTAL), !is.na(SAVLBAD_ANY), !is.na(poverty_rate)) %>%
+  group_by(CONTROL) %>%
+  filter(n_distinct(TESTERID) == 2) %>%
+  ungroup() %>%
+  summarise(num_controls = n_distinct(CONTROL))
+cat("Number of CONTROLs with complete outcomes and exactly two testers:", controls_with_complete_outcomes$num_controls, "\n")
+
+# Export merged data
+write_csv(sales_tester_rechomes_geocoded_acs, "Data/cleaned_hds.csv")
+cat("Exported merged ACS data to Data/cleaned_hds.csv\n")

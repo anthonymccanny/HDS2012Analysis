@@ -1,15 +1,22 @@
 # Don't Share Raw Data
-Data/HDS_intermediate_data/*
-Data/HDS_raw_data/*
-Data/HDS_technical_data/*
+Data/HDS_intermediate_data/
+Data/HDS_raw_data/
+Data/HDS_technical_data/
 
-#Don't Share Auxiliary Files
+# Ignore all files in Data except those explicitly tracked
+Data/*
+!Data/.gitkeep
+
+# Don't Share Auxiliary Files
 .DS_Store
 Data/.DS_Store
-.Rproj.user
+.Rproj.user/
 api_keys.R
 CLAUDE.md
 address_geocoding_old.R
 address_geocoding_with_lat_long.R
-comment.*
 HDS2012Analysis.Rproj
+comment.*
+*.md
+Methods_Appendix_Data_Cleaning.md
+

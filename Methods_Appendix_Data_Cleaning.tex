@@ -304,4 +304,14 @@ The substantial sample reduction during recommended homes integration raises imp
 
 However, this sample restriction is methodologically sound for several reasons. First, analyses of discriminatory differences in property recommendations require property data for both testers in each pair. Second, the majority of sample loss occurs randomly due to data collection challenges rather than systematic patterns that might bias results. Third, the remaining sample is sufficiently large (2,684 test pairs) to provide adequate statistical power for detecting meaningful differences in treatment.
 
+\section{Superfund Site Matching for Pollution Analysis}
+
+To replicate the pollution exposure measures in Christensen and Timmins (2022), we construct counts of Superfund sites within 5 km of each test location. Superfund site locations come from the EPA National Priorities List (NPL) dataset (Excel file \texttt{epa-national-priorities-list-ciesin-mod-v2-2014.xls}). We restrict the list to sites with \texttt{NPL\_STATUS\_DATE} prior to 2012 to align with the original study period, and we retain all NPL status categories (Final, Deleted, and Proposed). Distances are computed using the Haversine formula (great-circle distance) with Earth radius set to 6,371 km. The matching is implemented in \texttt{superfund\_matching.R} and integrated into the data pipeline by adding \texttt{SFcount\_5km} to the geocoded dataset before the ACS merge.
+
+We validate our construction against the original Christensen and Timmins replication dataset (\texttt{recsprocessed\_JPE.rds}), which provides their \texttt{SFcount} variable and the corresponding test-level coordinates (\texttt{Latitude}, \texttt{Longitude}). Using their coordinates (which are rounded to two decimal places), our baseline specification matches 92.9\% of observations exactly and 99.3\% within $\\pm 1$. We also evaluate several alternative specifications that might plausibly differ from the original implementation (e.g., different distance rules or site list cutoffs). These alternatives uniformly reduce exact match rates relative to the baseline, which supports the baseline as the best replication available given the archived data.
+
+\input{superfund_matching_table.tex}
+
+All diagnostics reported in the table above are reproduced by \texttt{matching\_diagnosis.R}, which runs the validation on the full replication dataset and prints the match rates for the baseline and alternative specifications.
+
 \end{document}

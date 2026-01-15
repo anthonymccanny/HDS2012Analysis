@@ -13,6 +13,7 @@ Data/.DS_Store
 .Rproj.user/
 api_keys.R
 CLAUDE.md
+.claude/*
 address_geocoding_old.R
 address_geocoding_with_lat_long.R
 HDS2012Analysis.Rproj
@@ -20,3 +21,8 @@ comment.*
 *.md
 Methods_Appendix_Data_Cleaning.md
 
+Chistensen and Timmins (2022).pdf
+CLAUDE.md
+Methods_Appendix_Data_Cleaning.aux
+Methods_Appendix_Data_Cleaning.log
+Methods_Appendix_Data_Cleaning.out

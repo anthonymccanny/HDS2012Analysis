@@ -960,8 +960,20 @@ sales_tester_rechomes_geocoded <- sales_tester_rechomes_geocoded %>%
 sales_tester_rechomes_geocoded_acs <- merge_hds_with_acs(sales_tester_rechomes_geocoded , geoid_col = "tract_geoid")
 cat("\nACS matching process completed successfully!\n")
 
+# =================================================================================================== #
+# MERGE WITH SEDA SCHOOL DATA
+# =================================================================================================== #
+
+cat("\n=== MERGING WITH SEDA SCHOOL TEST SCORES ===\n")
+
+source("school_matching.R")
+
+# Merge school test scores using spatial matching
+sales_tester_rechomes_geocoded_acs_schools <- match_schools(sales_tester_rechomes_geocoded_acs)
+cat("\nSchool test score matching completed!\n")
+
 # Print summary of final dataset
-controls_with_complete_outcomes <- sales_tester_rechomes_geocoded_acs %>%
+controls_with_complete_outcomes <- sales_tester_rechomes_geocoded_acs_schools %>%
   filter(!is.na(STOTUNIT_TOTAL), !is.na(SAVLBAD_ANY), !is.na(poverty_rate)) %>%
   group_by(CONTROL) %>%
   filter(n_distinct(TESTERID) == 2) %>%
@@ -970,5 +982,5 @@ controls_with_complete_outcomes <- sales_tester_rechomes_geocoded_acs %>%
 cat("Number of CONTROLs with complete outcomes and exactly two testers:", controls_with_complete_outcomes$num_controls, "\n")
 
 # Export merged data
-write_csv(sales_tester_rechomes_geocoded_acs, "Data/cleaned_hds.csv")
-cat("Exported merged ACS data to Data/cleaned_hds.csv\n")
+write_csv(sales_tester_rechomes_geocoded_acs_schools, "Data/cleaned_hds.csv")
+cat("Exported merged data with ACS and school test scores to Data/cleaned_hds.csv\n")

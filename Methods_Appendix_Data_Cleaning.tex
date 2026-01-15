@@ -304,4 +304,72 @@ The substantial sample reduction during recommended homes integration raises imp
 
 However, this sample restriction is methodologically sound for several reasons. First, analyses of discriminatory differences in property recommendations require property data for both testers in each pair. Second, the majority of sample loss occurs randomly due to data collection challenges rather than systematic patterns that might bias results. Third, the remaining sample is sufficiently large (2,684 test pairs) to provide adequate statistical power for detecting meaningful differences in treatment.
 
+
+\section{Linked Data Sets}
+
+\subsection{School Test Score Data Integration}
+
+Following the methodology of Christensen \& Timmins (2022), we integrate school-level test score data from the Stanford Education Data Archive (SEDA) v3.0 by spatially matching property locations to school attendance zones. We use SEDA v3.0 to align with the data version likely used in the original study (published circa 2019). This section documents the spatial matching procedure and data sources.
+
+\subsubsection{Data Sources}
+
+We utilize two primary data sources for school matching:
+
+The \textbf{School Attendance Boundary Survey (SABS)} provides polygon shapefiles defining school catchment areas for the 2015-16 school year. We use the school-level files: \texttt{SABS\_1516\_Primary.shp} for elementary schools and \texttt{SABS\_1516\_Middle.shp} for middle schools. Each boundary polygon contains the 12-character NCES school identifier (\texttt{ncessch}) that enables direct linkage to test score data.
+
+The \textbf{SEDA v3.0 school-level pooled test scores} (\texttt{seda\_school\_pool\_cs\_v30.csv}) contain cohort-standardized mean test scores by school and grade level. SEDA v3.0 uses NCES school identifiers directly, eliminating the need for a crosswalk file and providing a simpler matching process. We use pooled scores across multiple cohorts to maximize coverage and stability of estimates.
+
+\subsubsection{Spatial Matching Methodology}
+
+The spatial matching process employs point-in-polygon spatial joins to assign each property to its associated elementary and middle school attendance zones. The procedure consists of the following steps:
+
+First, we convert geocoded property locations (latitude and longitude coordinates) to spatial point features using the WGS84 coordinate reference system (EPSG:4326). These points are then transformed to match the coordinate reference system of the SABS boundary shapefiles to ensure accurate spatial operations.
+
+Second, we perform separate spatial joins for elementary and middle school boundaries. For each property point, we identify which school attendance boundary polygon contains that point using the \texttt{st\_within} spatial predicate from the \texttt{sf} package in R. This yields the NCES school identifier for each property's assigned elementary and middle school. When properties fall within overlapping school boundaries (which occurs in some geographic areas), we retain only the first match.
+
+Third, we extract cohort-standardized test scores for matched schools directly using the NCES identifier. SEDA v3.0 uses the \texttt{midgrd} field to indicate grade-level midpoints. For elementary schools, we average test scores from grade midpoints 4, 4.5, 5, and 5.5 (corresponding to grades 4-5). For middle schools, we average scores from grade midpoints 6.5, 7, and 7.5 (corresponding to grades 6-7). These grade ranges align with typical elementary and middle school configurations and provide stable estimates based on multiple grade levels.
+
+\begin{lstlisting}[language=R]
+# Convert properties to spatial points
+homes_sf <- st_as_sf(homes_data,
+                     coords = c("long", "lat"),
+                     crs = 4326)
+homes_sf <- st_transform(homes_sf, st_crs(sabs_boundaries))
+
+# Spatial join with school boundaries
+homes_with_schools <- st_join(homes_sf, sabs_boundaries,
+                               join = st_within)
+
+# Handle overlapping boundaries
+homes_with_schools <- homes_with_schools %>%
+  group_by(row_id) %>%
+  slice(1) %>%
+  ungroup()
+
+# Link directly to SEDA test scores using ncessch
+homes_with_scores <- homes_with_schools %>%
+  left_join(seda_scores, by = "ncessch")
+\end{lstlisting}
+
+\subsubsection{Handling of Advertised vs. Recommended Properties}
+
+The HDS data structure includes both advertised homes (the property listed in the advertisement that initiated the test) and recommended homes (additional properties shown to testers by real estate agents). These are distinguished by the \texttt{HADHOME} indicator variable, where \texttt{HADHOME = 1} denotes the advertised home.
+
+Our spatial matching assigns test scores to all properties in the long-format dataset, with each row representing a single property shown to a tester. For analyses requiring comparison of advertised versus recommended property characteristics (matching the structure of Christensen \& Timmins 2022), the data can be reshaped to wide format where each row represents a CONTROL-TESTERID pair with separate columns for advertised (\texttt{\_Ad} suffix) and recommended (\texttt{\_Rec} suffix) property test scores. For recommended properties, when multiple recommendations exist for a single tester, we use the mean test score across all recommended properties.
+
+\subsubsection{Data Quality and Coverage}
+
+The spatial matching process faces several potential limitations. Not all properties fall within defined school attendance boundaries, either because they are located outside the geographic coverage of SABS data or because their coordinates place them in areas without defined school zones. Additionally, not all schools in SABS have corresponding test score data in SEDA, either due to small school size, data privacy restrictions, or insufficient test-taking populations.
+
+The matching rate varies by school level and property type, with detailed coverage statistics reported in the data cleaning output. Properties that cannot be matched to school attendance zones receive missing values for test score variables, allowing analyses to proceed with available data while clearly identifying cases with missing school information.
+
+\subsection{Data Source Citations}
+
+\textbf{Stanford Education Data Archive (SEDA):}
+Reardon, S. F., Ho, A. D., Shear, B. R., Fahle, E. M., Kalogrides, D., DiSalvo, R., \& Yongjin, H. (2019).
+Stanford Education Data Archive (Version 3.0). Retrieved from http://purl.stanford.edu/db586ns4974.
+
+\textbf{School Attendance Boundary Survey (SABS):}
+National Center for Education Statistics. (2017). School Attendance Boundary Survey (SABS): School Year 2015-16. U.S. Department of Education. Retrieved from https://nces.ed.gov/programs/edge/SABS.
+
 \end{document}

@@ -943,57 +943,45 @@ write_csv(sales_tester_rechomes_geocoded, "Data/sales_tester_rechomes_geocoded.c
 cat("Exported geocoded data to Data/sales_tester_rechomes_geocoded.csv\n")
 
 # =================================================================================================== #
-# MERGE WITH ACS DATA
+# MERGE WITH EXTERNAL (NON-HDS) DATASETS
 # =================================================================================================== #
 
-# Reload CSV from file in case you want to run the file from here. 
-sales_tester_rechomes_geocoded <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
+cat("=== MERGING EXTERNAL DATASETS (ACS + NON-HDS) ===\n")
 
-# =================================================================================================== #
-# ADD SUPERFUND SITE COUNTS
-# =================================================================================================== #
+# Reload CSV from file in case you want to run the file from here.
+merged_external_data <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
 
-cat("=== ADDING SUPERFUND SITE COUNTS ===\n")
-source("superfund_matching.R")
+# Load merge helpers
+source("acs_merging.R")
+source("superfund_merging.R")
+source("school_score_merging.R")
 
-sf_data <- load_superfund_data(
-  "Data/Non_HDS/Superfund/epa-national-priorities-list-ciesin-mod-v2-2014.xls",
-  year_cutoff = 2012
-)
-
-sales_tester_rechomes_geocoded <- add_superfund_counts(
-  sales_tester_rechomes_geocoded,
-  lat_col = "lat",
-  lon_col = "long",
-  sf_data = sf_data
-)
-
-cat("=== MERGING WITH ACS DATA ===\n")
-
-source("acs_merge.R")
-
-# Prepare tract GEOID for merging
-sales_tester_rechomes_geocoded <- sales_tester_rechomes_geocoded %>%
+# Prepare tract GEOID for ACS merging
+merged_external_data <- merged_external_data %>%
   mutate(tract_geoid = str_sub(blockgroup_geoid, 1, 11))
 
-# Merge in the ACS data using the helper function
-sales_tester_rechomes_geocoded_acs <- merge_hds_with_acs(sales_tester_rechomes_geocoded , geoid_col = "tract_geoid")
-cat("\nACS matching process completed successfully!\n")
+cat("\n--- ACS tract-level demographics ---\n")
+merged_external_data <- merge_acs(
+  merged_external_data,
+  geoid_col = "tract_geoid"
+)
 
-# =================================================================================================== #
-# MERGE WITH SEDA SCHOOL DATA
-# =================================================================================================== #
+cat("\n--- Superfund site counts (5 km) ---\n")
+merged_external_data <- merge_superfund_counts(
+  merged_external_data,
+  lat_col = "lat",
+  lon_col = "long"
+)
 
-cat("\n=== MERGING WITH SEDA SCHOOL TEST SCORES ===\n")
-
-source("school_matching.R")
-
-# Merge school test scores using spatial matching
-sales_tester_rechomes_geocoded_acs_schools <- match_schools(sales_tester_rechomes_geocoded_acs)
-cat("\nSchool test score matching completed!\n")
+cat("\n--- SEDA school test scores ---\n")
+merged_external_data <- merge_school_scores(
+  merged_external_data,
+  lat_col = "lat",
+  lon_col = "long"
+)
 
 # Print summary of final dataset
-controls_with_complete_outcomes <- sales_tester_rechomes_geocoded_acs_schools %>%
+controls_with_complete_outcomes <- merged_external_data %>%
   filter(!is.na(STOTUNIT_TOTAL), !is.na(SAVLBAD_ANY), !is.na(poverty_rate)) %>%
   group_by(CONTROL) %>%
   filter(n_distinct(TESTERID) == 2) %>%
@@ -1002,5 +990,5 @@ controls_with_complete_outcomes <- sales_tester_rechomes_geocoded_acs_schools %>
 cat("Number of CONTROLs with complete outcomes and exactly two testers:", controls_with_complete_outcomes$num_controls, "\n")
 
 # Export merged data
-write_csv(sales_tester_rechomes_geocoded_acs_schools, "Data/cleaned_hds.csv")
-cat("Exported merged data with ACS and school test scores to Data/cleaned_hds.csv\n")
+write_csv(merged_external_data, "Data/cleaned_hds.csv")
+cat("Exported merged data with external datasets to Data/cleaned_hds.csv\n")

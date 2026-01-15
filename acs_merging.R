@@ -1,7 +1,7 @@
-# ACS 2008-2012 5-Year Block Group Data Matcher
+# ACS 2008-2012 5-Year Tract Data Merger
 # Author: Anthony McCanny
 # Date: 2025-09-21
-# Purpose: Pull ACS block group data and merge with existing geocoded HDS data
+# Purpose: Pull ACS tract data and merge with existing geocoded HDS data
 
 # =================================================================================================== #
 # SETUP: LOAD REQUIRED PACKAGES AND API KEYS
@@ -188,7 +188,7 @@ process_acs_variables <- function(acs_raw) {
 # MERGE FUNCTION FOR HDS DATA
 # =================================================================================================== #
 
-merge_hds_with_acs <- function(hds_data, geoid_col = "tract_geoid") {
+merge_acs <- function(hds_data, geoid_col = "tract_geoid") {
   
   # Merge HDS property data with ACS tract data
 
@@ -256,7 +256,7 @@ merge_hds_with_acs <- function(hds_data, geoid_col = "tract_geoid") {
 
 # # 2. Merge with ACS data
 # cat("Starting ACS data merge...\n")
-# hds_with_acs <- merge_hds_with_acs(hds_data, geoid_col = "tract_geoid")
+# hds_with_acs <- merge_acs(hds_data, geoid_col = "tract_geoid")
 
 # # # 3. Save results
 # # output_file <- "Data/hds_sample_with_acs_variables.csv"

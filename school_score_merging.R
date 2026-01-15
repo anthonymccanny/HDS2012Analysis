@@ -1,5 +1,5 @@
-# school_matching.R
-# Functions for matching properties to school attendance boundaries and SEDA test scores
+# school_score_merging.R
+# Functions for merging school attendance boundary scores (SEDA) into properties
 # Uses SABS 2015-16 boundaries and SEDA v3.0 standardized test scores
 
 library(sf)
@@ -13,7 +13,7 @@ library(readr)
 #'
 #' @param data A dataframe containing lat and long columns
 #' @param lat_col Name of latitude column (default: "lat")
-#' @param long_col Name of longitude column (default: "long")
+#' @param lon_col Name of longitude column (default: "long")
 #' @return Original dataframe with four additional columns:
 #'   - elementary_school_score: SEDA v3 test score (grades 4-5.5 average)
 #'   - middle_school_score: SEDA v3 test score (grades 6.5-7.5 average)
@@ -26,7 +26,7 @@ library(readr)
 #' match is selected. Properties outside all boundaries or matched to schools
 #' without SEDA data receive NA.
 #'
-match_schools <- function(data, lat_col = "lat", long_col = "long") {
+merge_school_scores <- function(data, lat_col = "lat", lon_col = "long") {
 
   cat("Loading school boundaries and test scores...\n")
 
@@ -59,12 +59,12 @@ match_schools <- function(data, lat_col = "lat", long_col = "long") {
 
   # Filter to properties with valid coordinates
   properties <- data %>%
-    filter(!is.na(.data[[lat_col]]), !is.na(.data[[long_col]])) %>%
+    filter(!is.na(.data[[lat_col]]), !is.na(.data[[lon_col]])) %>%
     mutate(row_id = row_number())
 
   # Convert to spatial object
   properties_sf <- st_as_sf(properties,
-                            coords = c(long_col, lat_col),
+                            coords = c(lon_col, lat_col),
                             crs = 4326)
   properties_sf <- st_transform(properties_sf, st_crs(primary))
 
@@ -98,7 +98,7 @@ match_schools <- function(data, lat_col = "lat", long_col = "long") {
 
   # For properties with missing coordinates, add NA columns
   missing_coords <- data %>%
-    filter(is.na(.data[[lat_col]]) | is.na(.data[[long_col]])) %>%
+    filter(is.na(.data[[lat_col]]) | is.na(.data[[lon_col]])) %>%
     mutate(
       elementary_school_id = NA_character_,
       elementary_school_score = NA_real_,

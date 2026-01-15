@@ -1,43 +1,72 @@
 # matching_diagnosis.R
-# Validates school matching methodology against Christensen & Timmins (2022) replication data
-# Tests our spatial matching approach using C&T's exact coordinates for recommended properties
+# Standardized validation of external dataset merges vs Christensen & Timmins (2022) replication data
 
-library(tidyverse)
-library(sf)
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(sf)
+  library(readxl)
+})
 
-cat("=== SCHOOL MATCHING VALIDATION ===\n\n")
-cat("This script validates our school matching methodology by applying it to\n")
-cat("C&T's exact coordinates and comparing results with their published scores.\n\n")
+appendix_table_dir <- "Appendix_Tables"
+if (!dir.exists(appendix_table_dir)) {
+  dir.create(appendix_table_dir, recursive = TRUE)
+}
+
+write_rows_tex <- function(rows, filename) {
+  writeLines(rows, file.path(appendix_table_dir, filename))
+  cat("Wrote LaTeX rows to:", file.path(appendix_table_dir, filename), "\n")
+}
+
+match_stats <- function(ct_vals, our_vals, exact_tol = 0.001) {
+  ct_ok <- !is.na(ct_vals)
+  both_ok <- ct_ok & !is.na(our_vals)
+
+  total <- sum(ct_ok)
+  matched <- sum(both_ok)
+  exact <- sum(both_ok & abs(our_vals - ct_vals) <= exact_tol)
+
+  match_rate <- if (total > 0) 100 * matched / total else NA_real_
+  exact_rate <- if (total > 0) 100 * exact / total else NA_real_
+  exact_rate_matched <- if (matched > 0) 100 * exact / matched else NA_real_
+
+  cor_val <- if (matched > 1) {
+    cor(our_vals[both_ok], ct_vals[both_ok])
+  } else {
+    NA_real_
+  }
+
+  list(
+    total = total,
+    matched = matched,
+    exact = exact,
+    match_rate = match_rate,
+    exact_rate = exact_rate,
+    exact_rate_matched = exact_rate_matched,
+    correlation = cor_val
+  )
+}
+
+fmt_num <- function(x, digits = 1) {
+  if (is.na(x)) "--" else sprintf(paste0("%.", digits, "f"), x)
+}
+
+matching_summary <- tibble(
+  Dataset = character(),
+  N_total = integer(),
+  N_matched = integer(),
+  Match_rate = double(),
+  Exact_rate = double(),
+  Exact_rate_matched = double(),
+  Correlation = double()
+)
 
 # ==============================================================================
-# LOAD DATA
+# SCHOOL MATCHING VALIDATION
 # ==============================================================================
 
-cat("Loading data sources...\n")
+cat("=== SCHOOL MATCHING VALIDATION ===\n")
 
-# Load SABS 2015-16 boundaries
-primary <- st_read("Data/Non_HDS/SABS/SABS_1516_SchoolLevels/SABS_1516_Primary.shp",
-                   quiet = TRUE)
-middle <- st_read("Data/Non_HDS/SABS/SABS_1516_SchoolLevels/SABS_1516_Middle.shp",
-                  quiet = TRUE)
-
-# Load SEDA v3 scores
-seda <- read_csv("Data/Non_HDS/SEDA_v3/seda_school_pool_cs_v30.csv",
-                 show_col_types = FALSE) %>%
-  mutate(ncessch = as.character(ncessch))
-
-# Calculate elementary and middle school scores
-elem_scores <- seda %>%
-  filter(midgrd %in% c(4, 4.5, 5, 5.5)) %>%
-  group_by(ncessch) %>%
-  summarise(elementary_school_score = mean(mn_avg_ol, na.rm = TRUE),
-            .groups = "drop")
-
-middle_scores <- seda %>%
-  filter(midgrd %in% c(6.5, 7, 7.5)) %>%
-  group_by(ncessch) %>%
-  summarise(middle_school_score = mean(mn_avg_ol, na.rm = TRUE),
-            .groups = "drop")
+source("school_score_merging.R")
 
 # Load C&T recommended properties with coordinates
 ct_recs <- readRDS("Data/HuD_Replication/Final Data Sets/recsprocessed_JPE.rds") %>%
@@ -45,7 +74,7 @@ ct_recs <- readRDS("Data/HuD_Replication/Final Data Sets/recsprocessed_JPE.rds")
 
 cat(sprintf("  C&T recommended properties: %d\n", nrow(ct_recs)))
 
-# Load C&T scores (these are property-level, not pair-level)
+# Load C&T scores (property-level)
 ct_hud <- readRDS("Data/HuD_Replication/Final Data Sets/HUDprocessed_JPE_testscores_042021.rds")
 
 ct_scores <- ct_hud %>%
@@ -54,7 +83,6 @@ ct_scores <- ct_hud %>%
          ct_middle_score = mn_avg_ol_middle_Rec) %>%
   distinct()
 
-# Match scores to properties using property identifiers
 ct_with_scores <- ct_recs %>%
   left_join(ct_scores,
             by = c("CONTROL", "TESTERID", "RecPrice", "Sqft_Rec"),
@@ -63,137 +91,65 @@ ct_with_scores <- ct_recs %>%
   slice(1) %>%
   ungroup()
 
-cat(sprintf("  Properties with C&T scores: %d\n\n", nrow(ct_with_scores)))
+cat(sprintf("  Properties with C&T scores: %d\n", nrow(ct_with_scores)))
 
-# ==============================================================================
-# APPLY OUR MATCHING TO C&T COORDINATES
-# ==============================================================================
+# Apply our matching function to C&T coordinates
+ct_matching_input <- ct_with_scores %>%
+  rename(lat = Latitude, long = Longitude)
 
-cat("Applying our spatial matching to C&T's coordinates...\n")
+ct_matched <- merge_school_scores(ct_matching_input, lat_col = "lat", lon_col = "long")
 
-# Convert to spatial object
-ct_sf <- st_as_sf(ct_with_scores,
-                  coords = c("Longitude", "Latitude"),
-                  crs = 4326)
-ct_sf <- st_transform(ct_sf, st_crs(primary))
-
-# Match to elementary schools
-our_elem <- st_join(ct_sf, primary, join = st_within) %>%
-  st_drop_geometry() %>%
-  group_by(CONTROL, TESTERID, SEQRH) %>%
-  slice(1) %>%
-  ungroup() %>%
-  left_join(elem_scores, by = "ncessch") %>%
-  select(CONTROL, TESTERID, SEQRH,
-         our_elem_id = ncessch,
-         our_elem_score = elementary_school_score)
-
-# Match to middle schools
-our_middle <- st_join(ct_sf, middle, join = st_within) %>%
-  st_drop_geometry() %>%
-  group_by(CONTROL, TESTERID, SEQRH) %>%
-  slice(1) %>%
-  ungroup() %>%
-  left_join(middle_scores, by = "ncessch") %>%
-  select(CONTROL, TESTERID, SEQRH,
-         our_middle_id = ncessch,
+comparison <- ct_matched %>%
+  select(CONTROL, TESTERID, SEQRH, ct_elem_score, ct_middle_score,
+         our_elem_score = elementary_school_score,
          our_middle_score = middle_school_score)
 
-# Combine with C&T scores
-comparison <- ct_with_scores %>%
-  select(CONTROL, TESTERID, SEQRH, ct_elem_score, ct_middle_score) %>%
-  left_join(our_elem, by = c("CONTROL", "TESTERID", "SEQRH")) %>%
-  left_join(our_middle, by = c("CONTROL", "TESTERID", "SEQRH"))
+# Elementary school stats
+stats_elem <- match_stats(comparison$ct_elem_score, comparison$our_elem_score, exact_tol = 0.001)
+cat(sprintf("Elementary schools: matched %d/%d (%.1f%%), exact %.1f%%, r = %.4f\n",
+            stats_elem$matched, stats_elem$total, stats_elem$match_rate,
+            stats_elem$exact_rate, stats_elem$correlation))
 
-cat("  Matching complete.\n\n")
+matching_summary <- matching_summary %>%
+  add_row(
+    Dataset = "School scores (Elementary)",
+    N_total = stats_elem$total,
+    N_matched = stats_elem$matched,
+    Match_rate = stats_elem$match_rate,
+    Exact_rate = stats_elem$exact_rate,
+    Exact_rate_matched = stats_elem$exact_rate_matched,
+    Correlation = stats_elem$correlation
+  )
 
-# ==============================================================================
-# CALCULATE VALIDATION STATISTICS
-# ==============================================================================
+# Middle school stats
+stats_middle <- match_stats(comparison$ct_middle_score, comparison$our_middle_score, exact_tol = 0.001)
+cat(sprintf("Middle schools: matched %d/%d (%.1f%%), exact %.1f%%, r = %.4f\n",
+            stats_middle$matched, stats_middle$total, stats_middle$match_rate,
+            stats_middle$exact_rate, stats_middle$correlation))
 
-cat("===================================================================\n")
-cat("VALIDATION RESULTS\n")
-cat("===================================================================\n\n")
+matching_summary <- matching_summary %>%
+  add_row(
+    Dataset = "School scores (Middle)",
+    N_total = stats_middle$total,
+    N_matched = stats_middle$matched,
+    Match_rate = stats_middle$match_rate,
+    Exact_rate = stats_middle$exact_rate,
+    Exact_rate_matched = stats_middle$exact_rate_matched,
+    Correlation = stats_middle$correlation
+  )
 
-# Elementary schools - base on ALL properties with C&T scores
-elem_with_ct <- comparison %>%
-  filter(!is.na(ct_elem_score))
-
-n_elem_total <- nrow(elem_with_ct)
-n_elem_we_matched <- sum(!is.na(elem_with_ct$our_elem_score))
-n_elem_exact <- sum(abs(elem_with_ct$our_elem_score - elem_with_ct$ct_elem_score) < 0.001,
-                     na.rm = TRUE)
-
-# Correlation only on properties both matched
-elem_both <- elem_with_ct %>% filter(!is.na(our_elem_score))
-cor_elem <- cor(elem_both$our_elem_score, elem_both$ct_elem_score)
-
-pct_we_matched_elem <- 100 * n_elem_we_matched / n_elem_total
-pct_exact_of_total_elem <- 100 * n_elem_exact / n_elem_total
-pct_exact_of_matched_elem <- 100 * n_elem_exact / n_elem_we_matched
-
-cat("ELEMENTARY SCHOOLS:\n")
-cat(sprintf("  Total properties with C&T scores:              %d\n", n_elem_total))
-cat(sprintf("  Properties we successfully matched:            %d (%.1f%% of total)\n",
-            n_elem_we_matched, pct_we_matched_elem))
-cat(sprintf("  Exact score matches (within 0.001):            %d (%.1f%% of total)\n",
-            n_elem_exact, pct_exact_of_total_elem))
-cat(sprintf("  Exact matches as %% of our successful matches:  %.1f%%\n",
-            pct_exact_of_matched_elem))
-cat(sprintf("  Correlation (for matched properties):          r = %.4f\n\n", cor_elem))
-
-# Middle schools - base on ALL properties with C&T scores
-middle_with_ct <- comparison %>%
-  filter(!is.na(ct_middle_score))
-
-n_middle_total <- nrow(middle_with_ct)
-n_middle_we_matched <- sum(!is.na(middle_with_ct$our_middle_score))
-n_middle_exact <- sum(abs(middle_with_ct$our_middle_score - middle_with_ct$ct_middle_score) < 0.001,
-                       na.rm = TRUE)
-
-# Correlation only on properties both matched
-middle_both <- middle_with_ct %>% filter(!is.na(our_middle_score))
-cor_middle <- cor(middle_both$our_middle_score, middle_both$ct_middle_score)
-
-pct_we_matched_middle <- 100 * n_middle_we_matched / n_middle_total
-pct_exact_of_total_middle <- 100 * n_middle_exact / n_middle_total
-pct_exact_of_matched_middle <- 100 * n_middle_exact / n_middle_we_matched
-
-cat("MIDDLE SCHOOLS:\n")
-cat(sprintf("  Total properties with C&T scores:              %d\n", n_middle_total))
-cat(sprintf("  Properties we successfully matched:            %d (%.1f%% of total)\n",
-            n_middle_we_matched, pct_we_matched_middle))
-cat(sprintf("  Exact score matches (within 0.001):            %d (%.1f%% of total)\n",
-            n_middle_exact, pct_exact_of_total_middle))
-cat(sprintf("  Exact matches as %% of our successful matches:  %.1f%%\n",
-            pct_exact_of_matched_middle))
-cat(sprintf("  Correlation (for matched properties):          r = %.4f\n\n", cor_middle))
-
-
-# ==============================================================================
-# SAVE DETAILED RESULTS
-# ==============================================================================
-
+# Save detailed school comparison results
 write_csv(comparison, "Data/school_matching_validation.csv")
-cat("Detailed validation results saved to: Data/school_matching_validation.csv\n\n")
-
-cat("Validation complete!\n")
-# matching_diagnosis.R
-# Diagnose Superfund matching accuracy against Christensen & Timmins replication data
-
-suppressPackageStartupMessages({
-  library(readxl)
-})
+cat("Detailed school validation results saved to: Data/school_matching_validation.csv\n")
 
 # ==============================================================================
 # SUPERFUND MATCHING DIAGNOSIS
 # ==============================================================================
 
-source("superfund_matching.R")
+cat("\n=== SUPERFUND MATCHING DIAGNOSIS ===\n")
 
-cat("=== Superfund Matching Diagnosis ===\n")
+source("superfund_merging.R")
 
-# Paths
 recs_path <- "Data/HuD_Replication/Final Data Sets/recsprocessed_JPE.rds"
 sf_excel_path <- "Data/Non_HDS/Superfund/epa-national-priorities-list-ciesin-mod-v2-2014.xls"
 
@@ -311,27 +267,110 @@ results <- data.frame(
 results$Exact_Match <- round(results$Exact_Match, 2)
 results$Within_1 <- round(results$Within_1, 2)
 
+# Render comparison symbols reliably in LaTeX tables
+results$Method <- gsub("<", "$<$", results$Method, fixed = TRUE)
+
 cat("\n=== Match Rate Summary (percent) ===\n")
 print(results, row.names = FALSE)
 
-# Write LaTeX table for Methods Appendix
-table_path <- "superfund_matching_table.tex"
-row_lines <- sprintf("%s & %.1f & %.1f \\\\",
-                     results$Method, results$Exact_Match, results$Within_1)
-table_lines <- c(
-  "\\begin{table}[h]",
-  "\\centering",
-  "\\caption{Superfund Matching Validation Against C\\&T Replication Data}",
-  "\\begin{tabular}{lrr}",
-  "\\toprule",
-  "Specification & Exact match (\\%) & Within +/-1 (\\%) \\\\",
-  "\\midrule",
-  row_lines,
-  "\\bottomrule",
-  "\\end{tabular}",
-  "\\end{table}"
-)
-writeLines(table_lines, table_path)
-cat("\nWrote LaTeX table to:", table_path, "\n")
+superfund_rows <- sprintf("%s & %.1f & %.1f \\\\",
+                          results$Method, results$Exact_Match, results$Within_1)
+if (length(superfund_rows) > 0) {
+  superfund_rows[length(superfund_rows)] <- sub("\\\\\\\\$", "", superfund_rows[length(superfund_rows)])
+}
+write_rows_tex(superfund_rows, "superfund_matching_variants_rows.tex")
 
-cat("\nNote: The baseline specification provides the highest exact match rate among the tested variants.\n")
+# Add baseline superfund results to the master summary
+stats_sf <- match_stats(sfcount, calc_2012_5, exact_tol = 0)
+cat(sprintf("Superfund baseline: matched %d/%d (%.1f%%), exact %.1f%%, r = %.4f\n",
+            stats_sf$matched, stats_sf$total, stats_sf$match_rate,
+            stats_sf$exact_rate, stats_sf$correlation))
+
+matching_summary <- matching_summary %>%
+  add_row(
+    Dataset = "Superfund count (5 km)",
+    N_total = stats_sf$total,
+    N_matched = stats_sf$matched,
+    Match_rate = stats_sf$match_rate,
+    Exact_rate = stats_sf$exact_rate,
+    Exact_rate_matched = stats_sf$exact_rate_matched,
+    Correlation = stats_sf$correlation
+  )
+
+# ==============================================================================
+# COORDINATE VALIDATION (OPTIONAL)
+# ==============================================================================
+
+cat("\n=== COORDINATE VALIDATION (OPTIONAL) ===\n")
+geocode_path <- "Data/sales_tester_rechomes_geocoded.csv"
+
+if (file.exists(geocode_path)) {
+  geo <- read_csv(geocode_path, show_col_types = FALSE)
+  needed_keys <- c("CONTROL", "TESTERID", "SEQRH")
+
+  if (!all(needed_keys %in% names(geo)) || !all(needed_keys %in% names(ct_recs))) {
+    cat("Skipping coordinate validation: missing join keys (CONTROL/TESTERID/SEQRH).\n")
+  } else if (!all(c("lat", "long") %in% names(geo))) {
+    cat("Skipping coordinate validation: missing lat/long columns in geocoded data.\n")
+  } else {
+    geo_joined <- geo %>%
+      select(all_of(needed_keys), lat, long) %>%
+      inner_join(ct_recs, by = needed_keys)
+
+    cat("Matched rows for coordinate check:", nrow(geo_joined), "\n")
+
+    dist_km <- haversine_km(
+      geo_joined$long,
+      geo_joined$lat,
+      geo_joined$Longitude,
+      geo_joined$Latitude
+    )
+
+    dist_m <- dist_km * 1000
+    coord_summary <- tibble(
+      N = length(dist_m),
+      Mean_m = mean(dist_m, na.rm = TRUE),
+      Median_m = median(dist_m, na.rm = TRUE),
+      Pct_within_50m = mean(dist_m <= 50, na.rm = TRUE) * 100,
+      Pct_within_100m = mean(dist_m <= 100, na.rm = TRUE) * 100,
+      Pct_within_500m = mean(dist_m <= 500, na.rm = TRUE) * 100,
+      Pct_within_1km = mean(dist_m <= 1000, na.rm = TRUE) * 100
+    )
+
+    coord_row <- sprintf(
+      "%d & %.1f & %.1f & %.1f & %.1f & %.1f & %.1f",
+      coord_summary$N,
+      coord_summary$Mean_m,
+      coord_summary$Median_m,
+      coord_summary$Pct_within_50m,
+      coord_summary$Pct_within_100m,
+      coord_summary$Pct_within_500m,
+      coord_summary$Pct_within_1km
+    )
+    write_rows_tex(coord_row, "coordinate_match_rows.tex")
+  }
+} else {
+  cat("Skipping coordinate validation: Data/sales_tester_rechomes_geocoded.csv not found.\n")
+}
+
+# ==============================================================================
+# MASTER SUMMARY TABLE
+# ==============================================================================
+
+summary_rows <- sprintf(
+  "%s & %d & %d & %s & %s & %s & %s \\\\",
+  matching_summary$Dataset,
+  matching_summary$N_total,
+  matching_summary$N_matched,
+  vapply(matching_summary$Match_rate, fmt_num, character(1), digits = 1),
+  vapply(matching_summary$Exact_rate, fmt_num, character(1), digits = 1),
+  vapply(matching_summary$Exact_rate_matched, fmt_num, character(1), digits = 1),
+  vapply(matching_summary$Correlation, fmt_num, character(1), digits = 3)
+)
+if (length(summary_rows) > 0) {
+  summary_rows[length(summary_rows)] <- sub("\\\\\\\\$", "", summary_rows[length(summary_rows)])
+}
+
+write_rows_tex(summary_rows, "matching_summary_rows.tex")
+
+cat("\nValidation complete!\n")

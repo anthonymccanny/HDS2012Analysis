@@ -1,5 +1,5 @@
-# superfund_matching.R
-# Functions for matching HDS observations to nearby Superfund sites
+# superfund_merging.R
+# Functions for merging HDS observations with nearby Superfund site counts
 
 # Load required library
 library(readxl)
@@ -99,12 +99,21 @@ count_superfund_within_radius <- function(lat, lon, sf_data, radius_km = 5) {
 #' @param df Data frame containing observations with lat/long coordinates
 #' @param lat_col Name of the latitude column (default: "lat")
 #' @param lon_col Name of the longitude column (default: "long")
-#' @param sf_data Data frame with Superfund site locations (from load_superfund_data())
+#' @param sf_data Data frame with Superfund site locations (from load_superfund_data()).
+#'                If NULL, the data are loaded internally using the default file path.
+#' @param excel_path Path to the Excel file containing Superfund data (used if sf_data is NULL)
+#' @param sheet_name Name of the sheet containing the data (used if sf_data is NULL)
+#' @param year_cutoff Year cutoff for filtering sites (used if sf_data is NULL)
+#' @param status_filter Optional character vector of NPL_STATUS values to keep (used if sf_data is NULL)
 #' @return Data frame with added column: SFcount_5km
-add_superfund_counts <- function(df,
+merge_superfund_counts <- function(df,
                                   lat_col = "lat",
                                   lon_col = "long",
-                                  sf_data) {
+                                  sf_data = NULL,
+                                  excel_path = "Data/Non_HDS/Superfund/epa-national-priorities-list-ciesin-mod-v2-2014.xls",
+                                  sheet_name = "EPA_NPL_Sites_asof_27Feb2014",
+                                  year_cutoff = 2012,
+                                  status_filter = NULL) {
 
   # Check that required columns exist
   if (!lat_col %in% names(df)) {
@@ -112,6 +121,14 @@ add_superfund_counts <- function(df,
   }
   if (!lon_col %in% names(df)) {
     stop(paste("Longitude column", lon_col, "not found in data frame"))
+  }
+  if (is.null(sf_data)) {
+    sf_data <- load_superfund_data(
+      excel_path = excel_path,
+      sheet_name = sheet_name,
+      year_cutoff = year_cutoff,
+      status_filter = status_filter
+    )
   }
   if (!all(c("LATITUDE", "LONGITUDE") %in% names(sf_data))) {
     stop("Superfund data must have LATITUDE and LONGITUDE columns")

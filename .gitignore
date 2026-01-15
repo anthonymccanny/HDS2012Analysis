@@ -6,6 +6,7 @@ Data/HDS_technical_data/
 # Ignore all files in Data except those explicitly tracked
 Data/*
 !Data/.gitkeep
+!Data/Data Sources and Assembly Instructions.md
 
 # Don't Share Auxiliary Files
 .DS_Store
@@ -22,6 +23,7 @@ HDS2012Analysis.Rproj
 comment.*
 *.md
 Methods_Appendix_Data_Cleaning.md
+!Data/Data Sources and Assembly Instructions.md
 
 Chistensen and Timmins (2022).pdf
 CLAUDE.md

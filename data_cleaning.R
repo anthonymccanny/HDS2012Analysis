@@ -13,7 +13,8 @@ packages <- c(
   "dplyr",     # Data manipulation and transformation
   "readr",     # Reading and writing CSV files
   "stringr",   # String manipulation and regex operations
-  "purrr"      # For map functions
+  "purrr",     # For map functions
+  "readxl"     # Reading Excel files (Superfund data)
 )
 
 # Install missing packages and load all
@@ -947,6 +948,25 @@ cat("Exported geocoded data to Data/sales_tester_rechomes_geocoded.csv\n")
 
 # Reload CSV from file in case you want to run the file from here. 
 sales_tester_rechomes_geocoded <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
+
+# =================================================================================================== #
+# ADD SUPERFUND SITE COUNTS
+# =================================================================================================== #
+
+cat("=== ADDING SUPERFUND SITE COUNTS ===\n")
+source("superfund_matching.R")
+
+sf_data <- load_superfund_data(
+  "Data/Non_HDS/Superfund/epa-national-priorities-list-ciesin-mod-v2-2014.xls",
+  year_cutoff = 2012
+)
+
+sales_tester_rechomes_geocoded <- add_superfund_counts(
+  sales_tester_rechomes_geocoded,
+  lat_col = "lat",
+  lon_col = "long",
+  sf_data = sf_data
+)
 
 cat("=== MERGING WITH ACS DATA ===\n")
 

@@ -12,6 +12,8 @@ Data/*
 Data/.DS_Store
 .Rproj.user/
 api_keys.R
+.claude/*
+.codex/*
 CLAUDE.md
 .claude/*
 address_geocoding_old.R

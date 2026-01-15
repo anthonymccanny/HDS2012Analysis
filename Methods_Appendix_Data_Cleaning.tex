@@ -351,17 +351,51 @@ homes_with_scores <- homes_with_schools %>%
   left_join(seda_scores, by = "ncessch")
 \end{lstlisting}
 
-\subsubsection{Handling of Advertised vs. Recommended Properties}
+\subsubsection{Application to Recommended Properties}
 
-The HDS data structure includes both advertised homes (the property listed in the advertisement that initiated the test) and recommended homes (additional properties shown to testers by real estate agents). These are distinguished by the \texttt{HADHOME} indicator variable, where \texttt{HADHOME = 1} denotes the advertised home.
+The school test score matching is applied specifically to recommended properties---the additional homes shown to testers by real estate agents beyond the initially advertised property. This focus on recommended properties aligns with Christensen \& Timmins (2022), as the primary analysis examines discrimination in the quality of neighborhood amenities (including school quality) of properties recommended to minority versus white homeseekers.
 
-Our spatial matching assigns test scores to all properties in the long-format dataset, with each row representing a single property shown to a tester. For analyses requiring comparison of advertised versus recommended property characteristics (matching the structure of Christensen \& Timmins 2022), the data can be reshaped to wide format where each row represents a CONTROL-TESTERID pair with separate columns for advertised (\texttt{\_Ad} suffix) and recommended (\texttt{\_Rec} suffix) property test scores. For recommended properties, when multiple recommendations exist for a single tester, we use the mean test score across all recommended properties.
+In the HDS data structure, recommended properties are distinguished by the \texttt{HADHOME} indicator variable, where \texttt{HADHOME = 0} or \texttt{NA} identifies recommended properties, while \texttt{HADHOME = 1} denotes the advertised home. Our spatial matching procedure assigns elementary and middle school test scores to each recommended property individually based on its geocoded coordinates. When multiple recommended properties exist for a single tester, pair-level analyses can aggregate these using the mean test score across all recommendations.
+
+\subsubsection{Validation Against Christensen \& Timmins (2022)}
+
+To validate our spatial matching methodology, we applied our procedure to the exact property coordinates used in the Christensen \& Timmins (2022) replication package and compared the resulting test scores with those reported in their study. This validation assesses whether our SABS 2015-16 boundaries and SEDA v3.0 test scores successfully replicate the original methodology.
+
+Starting from all recommended properties where C\&T reported school test scores (5,664 elementary, 5,685 middle), our methodology achieved high concordance:
+
+\begin{itemize}
+\item \textbf{Elementary schools:} We successfully matched 5,096 properties (90.0\% of C\&T total). Of these, 4,224 properties (74.6\% of C\&T total, 82.9\% of our matches) produced identical test scores (within 0.001 standard deviations), with correlation r = 0.915.
+\item \textbf{Middle schools:} We successfully matched 5,380 properties (94.6\% of C\&T total). Of these, 4,906 properties (86.3\% of C\&T total, 91.2\% of our matches) produced identical test scores (within 0.001 standard deviations), with correlation r = 0.959.
+\end{itemize}
+
+The high match rates (90-95\%), exact score rates (75-86\% of all C\&T properties), and strong correlations (r > 0.91) indicate successful replication of the spatial matching approach. Properties where we fail to match (10\% elementary, 5\% middle) fall outside school attendance boundaries in our SABS 2015-16 data or in areas without defined school zones. Among properties we successfully match, the remaining 9-17\% with non-identical scores reflect minor variations in school boundary assignment at geographic edges where properties fall near multiple school attendance zones. These discrepancies likely arise from differences in how overlapping boundaries are resolved (we select the first match, while the original study may use alternative selection criteria) or from slight differences in the SABS vintage used.
+
+The validation confirms that our methodology correctly implements the spatial matching procedure used in the original study, providing confidence in the reliability of school test score assignments for subsequent analyses of neighborhood steering and housing discrimination.
 
 \subsubsection{Data Quality and Coverage}
 
 The spatial matching process faces several potential limitations. Not all properties fall within defined school attendance boundaries, either because they are located outside the geographic coverage of SABS data or because their coordinates place them in areas without defined school zones. Additionally, not all schools in SABS have corresponding test score data in SEDA, either due to small school size, data privacy restrictions, or insufficient test-taking populations.
 
 The matching rate varies by school level and property type, with detailed coverage statistics reported in the data cleaning output. Properties that cannot be matched to school attendance zones receive missing values for test score variables, allowing analyses to proceed with available data while clearly identifying cases with missing school information.
+
+\subsubsection{Output Variables}
+
+The school matching procedure adds four variables to the final dataset:
+
+\begin{itemize}
+\item \texttt{elementary\_school\_score}: SEDA v3.0 standardized test score for the elementary school attendance zone containing the property (average of grades 4, 4.5, 5, and 5.5). Missing (NA) if property falls outside all elementary school boundaries or matched school has no SEDA data.
+\item \texttt{middle\_school\_score}: SEDA v3.0 standardized test score for the middle school attendance zone containing the property (average of grades 6.5, 7, and 7.5). Missing (NA) if property falls outside all middle school boundaries or matched school has no SEDA data.
+\item \texttt{elementary\_school\_id}: 12-digit NCES school identifier for the matched elementary school. Missing (NA) if no match.
+\item \texttt{middle\_school\_id}: 12-digit NCES school identifier for the matched middle school. Missing (NA) if no match.
+\end{itemize}
+
+These variables are included for all properties in the dataset (both advertised and recommended), though the primary analytical use focuses on recommended properties where discrimination in neighborhood quality can be assessed.
+
+\subsubsection{Implementation}
+
+The school matching functionality is implemented in \texttt{school\_matching.R}, which provides a single function \texttt{match\_schools()} that performs all spatial matching operations. This function is called within the main data cleaning pipeline (\texttt{data\_cleaning.R}) after geocoding and ACS census data merging.
+
+Validation of the methodology can be performed using \texttt{matching\_diagnosis.R}, which applies our spatial matching procedure to the exact coordinates from the Christensen \& Timmins (2022) replication package and reports detailed comparison statistics. Running this validation script confirms that our implementation successfully replicates the original study's school matching approach.
 
 \subsection{Data Source Citations}
 

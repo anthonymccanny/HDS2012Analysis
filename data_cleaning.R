@@ -956,6 +956,7 @@ source("acs_merging.R")
 source("superfund_merging.R")
 source("school_score_merging.R")
 source("greatschools_crime_merging.R")
+source("rsei_merging.R")
 
 # Prepare tract GEOID for ACS merging
 merged_external_data <- merged_external_data %>%
@@ -983,6 +984,21 @@ merged_external_data <- merge_school_scores(
 
 cat("\n--- GreatSchools index + crime rate (C&T replication) ---\n")
 merged_external_data <- merge_ct_greatschools_crime(merged_external_data)
+
+cat("\n--- RSEI toxic concentration (TRI) ---\n")
+merged_external_data <- merge_rsei_toxic_conc(
+  merged_external_data,
+  lat_col = "lat",
+  lon_col = "long",
+  method = "centroid_nn",
+  value_cols = c("toxconc", "ctconc", "nctconc", "score"),
+  prefix = "rsei_",
+  keep_cell = FALSE,
+  agg_path = "Data/Non_HDS/RSEI/aggmicro2022_2012.csv",
+  agg_cache = "Data/Non_HDS/RSEI/rsei_agg_2012.rds",
+  lookup_cache = "Data/Non_HDS/RSEI/rsei_grid_lookup_2012.rds",
+  coords_cache = "Data/Non_HDS/RSEI/rsei_grid_coords_wgs84_2012.rds"
+)
 
 # Print summary of final dataset
 controls_with_complete_outcomes <- merged_external_data %>%

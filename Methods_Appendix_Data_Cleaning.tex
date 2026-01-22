@@ -472,6 +472,9 @@ Stanford Education Data Archive (Version 3.0). Retrieved from http://purl.stanfo
 \textbf{School Attendance Boundary Survey (SABS):}
 National Center for Education Statistics. (2017). School Attendance Boundary Survey (SABS): School Year 2015-16. U.S. Department of Education. Retrieved from https://nces.ed.gov/programs/edge/SABS.
 
+\textbf{Risk-Screening Environmental Indicators (RSEI):}
+U.S. Environmental Protection Agency. Risk-Screening Environmental Indicators (RSEI) aggregated grid cell data and 810m standard grid shapefiles. Retrieved from https://gaftp.epa.gov/rsei/.
+
 \section{Superfund Site Matching for Pollution Analysis}
 
 To replicate the pollution exposure measures in Christensen and Timmins (2022), we construct counts of Superfund sites within 5 km of each test location. Superfund site locations come from the EPA National Priorities List (NPL) dataset (Excel file \texttt{epa-national-priorities-list-ciesin-mod-v2-2014.xls}). We restrict the list to sites with \texttt{NPL\_STATUS\_DATE} prior to 2012 to align with the original study period, and we retain all NPL status categories (Final, Deleted, and Proposed). Distances are computed using the Haversine formula (great-circle distance) with Earth radius set to 6,371 km. The matching is implemented in \texttt{superfund\_merging.R} and integrated into the data pipeline by adding \texttt{SFcount\_5km} to the geocoded dataset in the standardized external-merge stage (after the ACS merge).
@@ -491,6 +494,30 @@ Specification & Exact match (\%) & Within +/-1 (\%) \\
 \end{table}
 
 All diagnostics reported in the table above are reproduced by \texttt{matching\_diagnosis.R}, which runs the validation on the full replication dataset and prints the match rates for the baseline and alternative specifications.
+
+\section{RSEI Toxic Concentration (TRI) Exposure}
+
+To measure toxic air pollution exposure from TRI facilities, we merge the EPA Risk-Screening Environmental Indicators (RSEI) aggregated grid cell data to property coordinates. We use the 810m standard grid shapefiles to align grid cells to geographic coordinates. Each grid cell is identified by the integer indices \texttt{CELLX} and \texttt{CELLY}. The aggregated RSEI files provide multiple exposure fields, including total toxic concentration (\texttt{ToxConc}), toxicity-weighted concentration (\texttt{CTConc}), non-cancer concentration (\texttt{NCTConc}), and the RSEI model score (\texttt{Score}).
+
+Our primary exposure measure for replication is \texttt{ToxConc} from the 2012 aggregated grid (\texttt{aggmicro2022\_2012.csv}), which is closest to the study period. We match property coordinates to grid cells using nearest-centroid assignment. A polygon containment check on a large sample yields identical grid assignments to the centroid method, which is expected given the regular 810m grid. Grid cells without valid centroid coordinates are dropped prior to matching. The merge is implemented in \texttt{rsei\_merging.R} and is integrated into the pipeline after geocoding and other external merges.
+
+\subsection{Validation Against Christensen \& Timmins}
+
+We validate our RSEI matching by applying the same grid assignment to the exact C\&T coordinates (\texttt{recsprocessed\_JPE.rds}) and comparing our assigned values to their \texttt{RSEI} variable. Exact numeric matches are rare, which is expected when using an updated RSEI model version and updated inputs. However, the rank-order and log-scale correlations are strong. For the 2012 grid, \texttt{ToxConc} and \texttt{CTConc} produce log1p Pearson correlations around 0.92 and Spearman correlations around 0.90 with the C\&T RSEI measure. These high correlations indicate that we are matching the same spatial pattern of toxic exposure even if absolute levels differ due to model version, toxicity weighting updates, or changes in the TRI input data.
+
+\begin{table}[h]
+\centering
+\caption{RSEI matching validation against C\&T replication data (2012 grid)}
+\begin{tabular}{lrrrr}
+\toprule
+Specification & Exact match (\%) & Pearson r & log1p Pearson r & Spearman r \\
+\midrule
+\input{Appendix_Tables/rsei_matching_variants_rows.tex}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All diagnostics reported in the table above are produced by \texttt{matching\_diagnosis.R}. We interpret the strong log1p and rank correlations as evidence that the merge correctly aligns properties with the intended RSEI exposure surface, while the weaker raw Pearson correlation reflects differences in RSEI model version and data vintage rather than a spatial matching error.
 
 \end{document}
 

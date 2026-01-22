@@ -168,6 +168,31 @@ Data/Non_HDS/
  
 **Sharing note:** this PM2.5 dataset is **publicly sharable** and can be included in the replication package.
 
+**New PM2.5 Source**
+
+Christensen and Timmins (2022) source their PM2.5 concentrations from:
+
+Donkelaar, Aaron van, Randall V. Martin, Chi Li, and Richard T. Burnett. 2019. “Regional Estimates of Chemical Composition of Fine Particulate Matter Using a Combined Geoscience-Statistical Method with Information from Satellites, Models, and Monitors.” Environmental Science & Technology 53 (5): 2595–611. https://doi.org/10.1021/acs.est.8b06392.
+
+The URL listed in this paper as the source of the full PM2.5 concentration datasets (http://fizz.phys.dal.ca/~atmos/martin/?page_id=140) is no longer available at the time of writing. However, one of the authors has made their satellite-derived PM2.5 concentration datasets available at https://sites.wustl.edu/acag/satellites/surface-pm2-5-archive/#V5.NA.04.02. We pull the V4.NA.02 version of the datasets, which are indicated by van Donkelaar et al. (2019) and at the archived version of http://fizz.phys.dal.ca/~atmos/martin/?page_id=140. We also pull datasets derived by the same authors with more up-to-date methodology V5.NA.04.02 to build the best estimates of pollution by neighbourhood. 
+
+Sources for the files in each folder are here:
+
+V4.NA.02:
+GWRwSPEC_PM25_NA_201201_201212-RH35-NoNegs.asc and GWRwSPEC_PM25_NA_201201_201212-RH35-NoNegs.prj: https://wustl.app.box.com/s/wk3144jc6xfy6ujfvyv5m2yfk33nz2nn/file/802740439614
+GWRwSPEC_PM25_NA_201201_201212-RH35.nc: https://wustl.app.box.com/s/wk3144jc6xfy6ujfvyv5m2yfk33nz2nn/file/802736943926
+GWRwSPEC.HEI.ELEVandURB_PM25_NA_201201_201212-RH35.nc: https://wustl.app.box.com/s/3jxywsp2hnr4nojztznmbn1o9fb9ilvo/file/802655356099
+
+Reference: van Donkelaar, A., R. V. Martin, et al. (2019). Regional Estimates of Chemical Composition of Fine Particulate Matter using a Combined Geoscience-Statistical Method with Information from Satellites, Models, and Monitors. Environmental Science & Technology, 2019, doi:10.1021/acs.est.8b06392.
+
+V5.NA.04.02:
+V5NA04.02.HybridPM25.xNorthAmerica.2012001-2012364.asc and V5NA04.02.HybridPM25.xNorthAmerica.2012001-2012364.prj: https://wustl.app.box.com/s/ssqbw4f7ys2cwmnrv34xnyv739450slb/file/1585219677266
+V5NA04.02.HybridPM25EFull.xNorthAmerica.2012001-2012364.nc: https://wustl.app.box.com/s/tfyt4uyuzbt4hbnw7bhos16aep9b5u7g/file/1718698899868
+Reference: van Donkelaar, A., R. V. Martin, B. Ford, C. Li, A. J. Pappin, S. Shen, and D. Zhang, North American Fine Particulate Matter Chemical Composition for 2000–2022 from Satellites, Models, and Monitors: The Changing Contribution of Wildfires., ACS ES&T Air, doi: 10.1021/acs.est.0c01764, 2024.
+
+
+
+
 **RSEI (Risk-Screening Environmental Indicators, 2022)**
 - Dataset: EPA RSEI aggregated grid cell data and 810m standard grid shapefiles.
 - Source: EPA FTP (`https://gaftp.epa.gov/rsei/`).

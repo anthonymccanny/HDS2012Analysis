@@ -957,6 +957,7 @@ source("superfund_merging.R")
 source("school_score_merging.R")
 source("greatschools_crime_merging.R")
 source("rsei_merging.R")
+source("pm25_merging.R")
 
 # Prepare tract GEOID for ACS merging
 merged_external_data <- merged_external_data %>%
@@ -998,6 +999,14 @@ merged_external_data <- merge_rsei_toxic_conc(
   agg_cache = "Data/Non_HDS/RSEI/rsei_agg_2012.rds",
   lookup_cache = "Data/Non_HDS/RSEI/rsei_grid_lookup_2012.rds",
   coords_cache = "Data/Non_HDS/RSEI/rsei_grid_coords_wgs84_2012.rds"
+)
+
+cat("\n--- PM2.5 modeled concentrations (2012) ---\n")
+merged_external_data <- merge_pm25(
+  merged_external_data,
+  lat_col = "lat",
+  lon_col = "long",
+  pm25_path = "Data/Non_HDS/PM2_5/V5.NA.04.02/V5NA04.02.HybridPM25.NorthAmerica.2012001-2012364.nc"
 )
 
 # Print summary of final dataset

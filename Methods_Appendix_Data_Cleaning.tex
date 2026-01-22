@@ -475,6 +475,9 @@ National Center for Education Statistics. (2017). School Attendance Boundary Sur
 \textbf{Risk-Screening Environmental Indicators (RSEI):}
 U.S. Environmental Protection Agency. Risk-Screening Environmental Indicators (RSEI) aggregated grid cell data and 810m standard grid shapefiles. Retrieved from https://gaftp.epa.gov/rsei/.
 
+\textbf{Modeled PM2.5 (van Donkelaar et al., 2019):}
+van Donkelaar, A., Martin, R. V., Li, C., \& Burnett, R. T. (2019). Satellite-based estimates of long-term ambient PM$_{2.5}$ concentrations (global AOD retrievals from MODIS/MISR/SeaWiFS). Data products at 0.01$^\circ$ resolution.
+
 \section{Superfund Site Matching for Pollution Analysis}
 
 To replicate the pollution exposure measures in Christensen and Timmins (2022), we construct counts of Superfund sites within 5 km of each test location. Superfund site locations come from the EPA National Priorities List (NPL) dataset (Excel file \texttt{epa-national-priorities-list-ciesin-mod-v2-2014.xls}). We restrict the list to sites with \texttt{NPL\_STATUS\_DATE} prior to 2012 to align with the original study period, and we retain all NPL status categories (Final, Deleted, and Proposed). Distances are computed using the Haversine formula (great-circle distance) with Earth radius set to 6,371 km. The matching is implemented in \texttt{superfund\_merging.R} and integrated into the data pipeline by adding \texttt{SFcount\_5km} to the geocoded dataset in the standardized external-merge stage (after the ACS merge).
@@ -518,6 +521,42 @@ Specification & Exact match (\%) & Pearson r & log1p Pearson r & Spearman r \\
 \end{table}
 
 All diagnostics reported in the table above are produced by \texttt{matching\_diagnosis.R}. We interpret the strong log1p and rank correlations as evidence that the merge correctly aligns properties with the intended RSEI exposure surface, while the weaker raw Pearson correlation reflects differences in RSEI model version and data vintage rather than a spatial matching error.
+
+\section{Modeled PM2.5 Exposure Matching}
+
+We merge modeled 2012 PM2.5 concentrations from the gridded van Donkelaar et al. (2019) product (V5 North America annual surface; \texttt{Data/Non\_HDS/PM2\_5/V5.NA.04.02/V5NA04.02.HybridPM25.NorthAmerica.2012001-2012364.nc}). The NetCDF file provides latitude and longitude vectors for grid-cell centers at 0.01$^\circ$ spacing in WGS84 and a \texttt{GWRPM25} grid (units: $\mu g/m^3$). Values are stored in their natural units and require no scaling. We round to one decimal to align with the Christensen \& Timmins replication values.
+
+For each recommended property, we map its geocoded latitude and longitude to the PM2.5 grid. Our baseline approach uses nearest-neighbor assignment to the grid-cell center, implemented in \texttt{pm25\_merging.R} via the \texttt{merge\_pm25()} helper. The resulting variable is stored as \texttt{PM25\_Rec}. To assess robustness, \texttt{matching\_diagnosis.R} evaluates several alternative specifications, including floor/ceiling snapping, bilinear interpolation, and pre-rounding coordinates prior to lookup.
+
+We validate the merge against the Christensen \& Timmins replication data (\texttt{recsprocessed\_JPE.rds}), which provides their \texttt{PM25\_Rec} values alongside coordinates. Table \ref{tab:pm25-matching} reports match rates, exact match rates, and correlations across several methodological variants (nearest, bilinear, and small coordinate shifts) applied to the V5 surface.
+
+\begin{table}[h]
+\centering
+\caption{PM2.5 matching variants (V5 baseline) against C\&T replication data}
+\label{tab:pm25-matching}
+\begin{tabular}{lrrr}
+\toprule
+Specification & Match rate (\%) & Exact match (\%) & Correlation \\
+\midrule
+\input{Appendix_Tables/pm25_matching_variants_rows.tex}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We also compare multiple available PM2.5 products from the same research group (V4.NA.02, V4.NA.03, and a MAPLE variant) using identical nearest-neighbor extraction. This comparison reveals that none of the accessible datasets replicate the C\&T values closely: exact match rates remain around 2--3\%, and correlations remain below 0.8. The best exact match among the datasets tested is the V4 MAPLE variant, while the highest correlation is achieved by the original V4.NA.02 product. These patterns strongly suggest that the original C\&T product differs from the public archives we have obtained.
+
+\begin{table}[h]
+\centering
+\caption{PM2.5 dataset comparison against C\&T replication data}
+\label{tab:pm25-datasets}
+\begin{tabular}{lrrr}
+\toprule
+Dataset & Match rate (\%) & Exact match (\%) & Correlation \\
+\midrule
+\input{Appendix_Tables/pm25_dataset_comparison_rows.tex}\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \end{document}
 

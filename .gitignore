@@ -9,6 +9,7 @@ Data/*
 !Data/Data Sources and Assembly Instructions.md
 
 # Don't Share Auxiliary Files
+.vscode/*
 .DS_Store
 Data/.DS_Store
 .Rproj.user/

@@ -955,6 +955,7 @@ merged_external_data <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
 source("acs_merging.R")
 source("superfund_merging.R")
 source("school_score_merging.R")
+source("greatschools_crime_merging.R")
 
 # Prepare tract GEOID for ACS merging
 merged_external_data <- merged_external_data %>%
@@ -979,6 +980,9 @@ merged_external_data <- merge_school_scores(
   lat_col = "lat",
   lon_col = "long"
 )
+
+cat("\n--- GreatSchools index + crime rate (C&T replication) ---\n")
+merged_external_data <- merge_ct_greatschools_crime(merged_external_data)
 
 # Print summary of final dataset
 controls_with_complete_outcomes <- merged_external_data %>%

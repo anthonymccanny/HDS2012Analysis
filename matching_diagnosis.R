@@ -50,6 +50,50 @@ fmt_num <- function(x, digits = 1) {
   if (is.na(x)) "--" else sprintf(paste0("%.", digits, "f"), x)
 }
 
+first_non_na <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) NA_real_ else x[1]
+}
+
+collapse_ct_values <- function(df, key_cols, value_cols) {
+  df %>%
+    select(all_of(c(key_cols, value_cols))) %>%
+    distinct() %>%
+    group_by(across(all_of(key_cols))) %>%
+    summarise(across(all_of(value_cols), first_non_na), .groups = "drop")
+}
+
+normalize_address <- function(x) {
+  x <- str_to_lower(x)
+  x <- str_replace_all(x, "[^a-z0-9]", " ")
+  str_squish(x)
+}
+
+make_addr_key <- function(df,
+                          addr_col = "HSITEAD",
+                          city_col = "HCITY",
+                          state_col = "HSTATE",
+                          zip_col = "HZIP") {
+  safe <- function(x) ifelse(is.na(x), "", x)
+  df %>%
+    mutate(
+      addr_key = normalize_address(paste(
+        safe(.data[[addr_col]]),
+        safe(.data[[city_col]]),
+        safe(.data[[state_col]]),
+        safe(.data[[zip_col]]),
+        sep = "|"
+      ))
+    )
+}
+
+coverage_stats <- function(our_df, ct_df, by) {
+  total <- nrow(our_df)
+  matched <- nrow(semi_join(our_df, ct_df, by = by))
+  rate <- if (total > 0) 100 * matched / total else NA_real_
+  list(total = total, matched = matched, rate = rate)
+}
+
 matching_summary <- tibble(
   Dataset = character(),
   N_total = integer(),
@@ -141,6 +185,106 @@ matching_summary <- matching_summary %>%
 # Save detailed school comparison results
 write_csv(comparison, "Data/school_matching_validation.csv")
 cat("Detailed school validation results saved to: Data/school_matching_validation.csv\n")
+
+# ==============================================================================
+# GREATSCHOOLS + CRIME COVERAGE (C&T REPLICATION, ALL ROWS)
+# ==============================================================================
+
+cat("\n=== GREATSCHOOLS + CRIME COVERAGE ===\n")
+
+our_path <- "Data/sales_tester_rechomes_merged.csv"
+ct_recs_path <- "Data/HuD_Replication/Final Data Sets/recsprocessed_JPE.rds"
+
+if (!file.exists(our_path)) {
+  cat("Skipping GreatSchools/crime coverage: Data/sales_tester_rechomes_merged.csv not found.\n")
+} else {
+  our_homes <- read_csv(our_path, show_col_types = FALSE)
+  ct_recs <- readRDS(ct_recs_path)
+
+  if (!"Elementary_School_Score_Rec" %in% names(ct_recs) && "Elementary_School_Score" %in% names(ct_recs)) {
+    ct_recs <- ct_recs %>% mutate(Elementary_School_Score_Rec = Elementary_School_Score)
+  }
+  if (!"Assault_Rec" %in% names(ct_recs) && "Assault" %in% names(ct_recs)) {
+    ct_recs <- ct_recs %>% mutate(Assault_Rec = Assault)
+  }
+  key_cols <- c("CONTROL", "TESTERID", "SEQRH")
+  ct_recs_key <- collapse_ct_values(
+    ct_recs,
+    key_cols,
+    c("Elementary_School_Score_Rec", "Assault_Rec")
+  )
+
+  baseline_all <- coverage_stats(our_homes, ct_recs_key, by = key_cols)
+
+  ct_recs_addr <- ct_recs %>%
+    select(CONTROL, TESTERID, HSITEAD, HCITY, HSTATE, HZIP) %>%
+    distinct()
+
+  addr_all <- coverage_stats(
+    make_addr_key(our_homes),
+    make_addr_key(ct_recs_addr),
+    by = c("CONTROL", "TESTERID", "addr_key")
+  )
+
+  loose_all <- coverage_stats(
+    our_homes,
+    ct_recs_key %>% select(CONTROL, TESTERID) %>% distinct(),
+    by = c("CONTROL", "TESTERID")
+  )
+
+  gs_variants <- tibble(
+    Method = c(
+      "Baseline: CONTROL+TESTERID+SEQRH",
+      "Address: CONTROL+TESTERID+HSITEAD+HCITY+HSTATE+HZIP",
+      "Loose: CONTROL+TESTERID"
+    ),
+    All_match = c(baseline_all$rate, addr_all$rate, loose_all$rate)
+  )
+
+  gs_rows <- sprintf("%s & %s \\\\",
+                     gs_variants$Method,
+                     vapply(gs_variants$All_match, fmt_num, character(1), digits = 1))
+  if (length(gs_rows) > 0) {
+    gs_rows[length(gs_rows)] <- sub("\\\\\\\\$", "", gs_rows[length(gs_rows)])
+  }
+  write_rows_tex(gs_rows, "greatschools_crime_matching_variants_rows.tex")
+
+  # Add coverage rows to master summary (coverage against our dataset)
+  merged_vals <- our_homes %>%
+    left_join(ct_recs_key, by = key_cols) %>%
+    mutate(
+      gs_value = Elementary_School_Score_Rec,
+      assault_value = Assault_Rec
+    )
+
+  gs_total <- nrow(merged_vals)
+  gs_matched <- sum(!is.na(merged_vals$gs_value))
+  gs_rate <- if (gs_total > 0) 100 * gs_matched / gs_total else NA_real_
+
+  assault_total <- nrow(merged_vals)
+  assault_matched <- sum(!is.na(merged_vals$assault_value))
+  assault_rate <- if (assault_total > 0) 100 * assault_matched / assault_total else NA_real_
+
+  matching_summary <- matching_summary %>%
+    add_row(
+      Dataset = "GreatSchools index (C\\&T merge)",
+      N_total = gs_total,
+      N_matched = gs_matched,
+      Match_rate = gs_rate,
+      Exact_rate = NA_real_,
+      Exact_rate_matched = NA_real_,
+      Correlation = NA_real_
+    ) %>%
+    add_row(
+      Dataset = "Crime rate (Assaults, C\\&T merge)",
+      N_total = assault_total,
+      N_matched = assault_matched,
+      Match_rate = assault_rate,
+      Exact_rate = NA_real_,
+      Exact_rate_matched = NA_real_,
+      Correlation = NA_real_
+    )
+}
 
 # ==============================================================================
 # SUPERFUND MATCHING DIAGNOSIS

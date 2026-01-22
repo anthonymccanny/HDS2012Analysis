@@ -298,6 +298,155 @@ matching_summary <- matching_summary %>%
   )
 
 # ==============================================================================
+# PM2.5 MATCHING DIAGNOSIS
+# ==============================================================================
+
+cat("\n=== PM2.5 MATCHING DIAGNOSIS ===\n")
+
+source("pm25_merging.R")
+
+pm25_path_v5 <- "Data/Non_HDS/PM2_5/V5.NA.04.02/V5NA04.02.HybridPM25.NorthAmerica.2012001-2012364.nc"
+pm25_path_v4 <- "Data/Non_HDS/PM2_5/V4.NA.02/GWRwSPEC_PM25_NA_201201_201212-RH35.nc"
+pm25_path_v4_maple <- "Data/Non_HDS/PM2_5/V4.NA.02/GWRwSPEC.HEI.ELEVandURB_PM25_NA_201201_201212-RH35.nc"
+pm25_path_v403 <- "Data/Non_HDS/PM2_5/V4.NA.02/V4NA03_PM25_NA_201201_201212-RH35.nc"
+
+ct_pm25 <- readRDS("Data/HuD_Replication/Final Data Sets/recsprocessed_JPE.rds") %>%
+  select(CONTROL, TESTERID, SEQRH, Latitude, Longitude, PM25_Rec)
+
+cat(sprintf("  C&T PM2.5 observations: %d\n", nrow(ct_pm25)))
+
+pm25_grid <- load_pm25_grid(
+  pm25_path_v5,
+  nc_pm_var = "GWRPM25",
+  nc_lat_var = "lat",
+  nc_lon_var = "lon"
+)
+pm25_scale <- pm25_grid$scale_factor_default
+
+# Baseline: nearest-neighbor lookup, rounded to 1 decimal (V5)
+pm25_baseline <- pm25_lookup(
+  lat_vals = ct_pm25$Latitude,
+  lon_vals = ct_pm25$Longitude,
+  grid = pm25_grid,
+  method = "nearest",
+  scale_factor = pm25_scale,
+  round_digits = 1,
+  round_mode = "even"
+)
+
+stats_pm25 <- match_stats(ct_pm25$PM25_Rec, pm25_baseline, exact_tol = 0.001)
+cat(sprintf("PM2.5 baseline: matched %d/%d (%.1f%%), exact %.1f%%, r = %.4f\n",
+            stats_pm25$matched, stats_pm25$total, stats_pm25$match_rate,
+            stats_pm25$exact_rate, stats_pm25$correlation))
+
+matching_summary <- matching_summary %>%
+  add_row(
+    Dataset = "PM2.5 (Recommended, V5)",
+    N_total = stats_pm25$total,
+    N_matched = stats_pm25$matched,
+    Match_rate = stats_pm25$match_rate,
+    Exact_rate = stats_pm25$exact_rate,
+    Exact_rate_matched = stats_pm25$exact_rate_matched,
+    Correlation = stats_pm25$correlation
+  )
+
+# Methodological variants for PM2.5 matching (V5 baseline)
+pm25_variants <- list(
+  list(label = "Nearest (round 0.1)", method = "nearest", round_digits = 1, round_mode = "even", coord_round = FALSE, lat_shift = 0, lon_shift = 0, grid = pm25_grid),
+  list(label = "Nearest (round 0.1, half-up)", method = "nearest", round_digits = 1, round_mode = "half_up", coord_round = FALSE, lat_shift = 0, lon_shift = 0, grid = pm25_grid),
+  list(label = "Bilinear (round 0.1)", method = "bilinear", round_digits = 1, round_mode = "even", coord_round = FALSE, lat_shift = 0, lon_shift = 0, grid = pm25_grid),
+  list(label = "Nearest (shift -0.005,+0.005)", method = "nearest", round_digits = 1, round_mode = "even", coord_round = FALSE, lat_shift = -0.005, lon_shift = 0.005, grid = pm25_grid)
+)
+
+pm25_results <- do.call(rbind, lapply(pm25_variants, function(v) {
+  lat_vals <- ct_pm25$Latitude
+  lon_vals <- ct_pm25$Longitude
+  if (v$coord_round) {
+    lat_vals <- round(lat_vals, 2)
+    lon_vals <- round(lon_vals, 2)
+  }
+  if (!is.null(v$lat_shift) && !is.null(v$lon_shift)) {
+    lat_vals <- lat_vals + v$lat_shift
+    lon_vals <- lon_vals + v$lon_shift
+  }
+
+  rd <- v$round_digits
+  if (is.na(rd)) rd <- NULL
+
+  vals <- pm25_lookup(
+    lat_vals = lat_vals,
+    lon_vals = lon_vals,
+    grid = v$grid,
+    method = v$method,
+    scale_factor = v$grid$scale_factor_default,
+    round_digits = rd,
+    round_mode = v$round_mode
+  )
+
+  stats <- match_stats(ct_pm25$PM25_Rec, vals, exact_tol = 0.001)
+
+  data.frame(
+    Method = v$label,
+    Match_rate = stats$match_rate,
+    Exact_rate = stats$exact_rate,
+    Correlation = stats$correlation,
+    stringsAsFactors = FALSE
+  )
+}))
+
+cat("\n=== PM2.5 Match Rate Summary (percent) ===\n")
+print(pm25_results, row.names = FALSE)
+
+pm25_rows <- sprintf("%s & %s & %s & %s \\\\",
+                     pm25_results$Method,
+                     vapply(pm25_results$Match_rate, fmt_num, character(1), digits = 1),
+                     vapply(pm25_results$Exact_rate, fmt_num, character(1), digits = 1),
+                     vapply(pm25_results$Correlation, fmt_num, character(1), digits = 3))
+if (length(pm25_rows) > 0) {
+  pm25_rows[length(pm25_rows)] <- sub("\\\\\\\\$", "", pm25_rows[length(pm25_rows)])
+}
+write_rows_tex(pm25_rows, "pm25_matching_variants_rows.tex")
+
+# Dataset comparison across available PM2.5 products (nearest, round 0.1)
+pm25_datasets <- list(
+  list(label = "V5 HybridPM25 (baseline)", path = pm25_path_v5, nc_pm_var = "GWRPM25", nc_lat_var = "lat", nc_lon_var = "lon"),
+  list(label = "V4.NA.02 GWRwSPEC", path = pm25_path_v4, nc_pm_var = "PM25", nc_lat_var = "LAT", nc_lon_var = "LON"),
+  list(label = "V4.NA.02 MAPLE (HEI.ELEVandURB)", path = pm25_path_v4_maple, nc_pm_var = "PM25", nc_lat_var = "LAT", nc_lon_var = "LON"),
+  list(label = "V4.NA.03", path = pm25_path_v403, nc_pm_var = "PM25", nc_lat_var = "LAT", nc_lon_var = "LON")
+)
+
+pm25_dataset_results <- do.call(rbind, lapply(pm25_datasets, function(d) {
+  if (!file.exists(d$path)) {
+    return(data.frame(Method = d$label, Match_rate = NA_real_, Exact_rate = NA_real_, Correlation = NA_real_))
+  }
+
+  grid_d <- load_pm25_grid(d$path, nc_pm_var = d$nc_pm_var, nc_lat_var = d$nc_lat_var, nc_lon_var = d$nc_lon_var)
+  vals <- pm25_lookup(ct_pm25$Latitude, ct_pm25$Longitude, grid_d, method = "nearest", round_digits = 1)
+  stats <- match_stats(ct_pm25$PM25_Rec, vals, exact_tol = 0.001)
+
+  data.frame(
+    Method = d$label,
+    Match_rate = stats$match_rate,
+    Exact_rate = stats$exact_rate,
+    Correlation = stats$correlation,
+    stringsAsFactors = FALSE
+  )
+}))
+
+cat("\n=== PM2.5 Dataset Comparison (percent) ===\n")
+print(pm25_dataset_results, row.names = FALSE)
+
+pm25_dataset_rows <- sprintf("%s & %s & %s & %s \\\\",
+                             pm25_dataset_results$Method,
+                             vapply(pm25_dataset_results$Match_rate, fmt_num, character(1), digits = 1),
+                             vapply(pm25_dataset_results$Exact_rate, fmt_num, character(1), digits = 1),
+                             vapply(pm25_dataset_results$Correlation, fmt_num, character(1), digits = 3))
+if (length(pm25_dataset_rows) > 0) {
+  pm25_dataset_rows[length(pm25_dataset_rows)] <- sub("\\\\\\\\$", "", pm25_dataset_rows[length(pm25_dataset_rows)])
+}
+write_rows_tex(pm25_dataset_rows, "pm25_dataset_comparison_rows.tex")
+
+# ==============================================================================
 # COORDINATE VALIDATION (OPTIONAL)
 # ==============================================================================
 

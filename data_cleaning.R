@@ -955,6 +955,7 @@ merged_external_data <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
 source("acs_merging.R")
 source("superfund_merging.R")
 source("school_score_merging.R")
+source("pm25_merging.R")
 
 # Prepare tract GEOID for ACS merging
 merged_external_data <- merged_external_data %>%
@@ -978,6 +979,14 @@ merged_external_data <- merge_school_scores(
   merged_external_data,
   lat_col = "lat",
   lon_col = "long"
+)
+
+cat("\n--- PM2.5 modeled concentrations (2012) ---\n")
+merged_external_data <- merge_pm25(
+  merged_external_data,
+  lat_col = "lat",
+  lon_col = "long",
+  pm25_path = "Data/Non_HDS/PM2_5/V5.NA.04.02/V5NA04.02.HybridPM25.NorthAmerica.2012001-2012364.nc"
 )
 
 # Print summary of final dataset

@@ -298,6 +298,149 @@ matching_summary <- matching_summary %>%
   )
 
 # ==============================================================================
+# RSEI (TRI TOXIC CONCENTRATION) MATCHING DIAGNOSIS
+# ==============================================================================
+
+cat("\n=== RSEI MATCHING DIAGNOSIS ===\n")
+
+source("rsei_merging.R")
+
+ct_rsei <- readRDS("Data/HuD_Replication/Final Data Sets/recsprocessed_JPE.rds") %>%
+  select(CONTROL, TESTERID, SEQRH, Latitude, Longitude, RSEI) %>%
+  filter(!is.na(RSEI), !is.na(Latitude), !is.na(Longitude))
+
+cat("  C&T properties with RSEI and coordinates:", nrow(ct_rsei), "\n")
+
+ct_rsei_input <- ct_rsei %>%
+  rename(lat = Latitude, long = Longitude)
+
+grid_lookup <- build_rsei_grid_lookup(
+  agg_path = "Data/Non_HDS/RSEI/aggmicro2022_2012.csv",
+  agg_cache = "Data/Non_HDS/RSEI/rsei_agg_2012.rds",
+  lookup_cache = "Data/Non_HDS/RSEI/rsei_grid_lookup_2012.rds"
+)
+
+grid_wgs <- prepare_rsei_grid(
+  lookup = grid_lookup,
+  distance_crs = NULL,
+  coords_cache = "Data/Non_HDS/RSEI/rsei_grid_coords_wgs84_2012.rds"
+)
+
+grid_albers <- prepare_rsei_grid(
+  lookup = grid_lookup,
+  distance_crs = 5070,
+  coords_cache = "Data/Non_HDS/RSEI/rsei_grid_coords_5070_2012.rds"
+)
+
+variants <- tibble(
+  Method = c(
+    "Centroid NN (WGS84), toxconc",
+    "Centroid NN (WGS84), ctconc",
+    "Centroid NN (WGS84), nctconc",
+    "Centroid NN (WGS84), score",
+    "Centroid NN (EPSG:5070), toxconc",
+    "Centroid NN (EPSG:5070), ctconc",
+    "Centroid NN (EPSG:5070), nctconc",
+    "Centroid NN (EPSG:5070), score"
+  ),
+  grid = c(
+    rep("wgs", 4),
+    rep("albers", 4)
+  ),
+  value_col = rep(c("toxconc", "ctconc", "nctconc", "score"), 2)
+)
+
+run_rsei_variant <- function(grid_prep, value_col) {
+  matched <- match_rsei_centroid(
+    ct_rsei_input,
+    grid = grid_prep$lookup,
+    coords = grid_prep$coords,
+    lat_col = "lat",
+    lon_col = "long",
+    value_cols = value_col,
+    prefix = "rsei_",
+    keep_cell = FALSE,
+    distance_crs = grid_prep$distance_crs
+  )
+
+  our_vals <- matched[[paste0("rsei_", value_col)]]
+  stats <- match_stats(ct_rsei$RSEI, our_vals, exact_tol = 0.001)
+  pearson_log <- cor(log1p(our_vals), log1p(ct_rsei$RSEI), use = "pairwise.complete.obs")
+  spearman <- cor(our_vals, ct_rsei$RSEI, use = "pairwise.complete.obs", method = "spearman")
+
+  list(matched = matched, stats = stats, our_vals = our_vals,
+       pearson_log = pearson_log, spearman = spearman)
+}
+
+variant_results <- vector("list", nrow(variants))
+for (i in seq_len(nrow(variants))) {
+  grid_prep <- if (variants$grid[i] == "wgs") grid_wgs else grid_albers
+  variant_results[[i]] <- run_rsei_variant(grid_prep, variants$value_col[i])
+}
+
+variants$Exact_Match_raw <- vapply(variant_results, function(x) x$stats$exact_rate, numeric(1))
+variants$Match_rate <- vapply(variant_results, function(x) x$stats$match_rate, numeric(1))
+variants$Exact_rate_matched <- vapply(variant_results, function(x) x$stats$exact_rate_matched, numeric(1))
+variants$Pearson_raw <- vapply(variant_results, function(x) x$stats$correlation, numeric(1))
+variants$Log1p_raw <- vapply(variant_results, function(x) x$pearson_log, numeric(1))
+variants$Spearman_raw <- vapply(variant_results, function(x) x$spearman, numeric(1))
+
+variants$Exact_Match <- round(variants$Exact_Match_raw, 2)
+variants$Pearson <- round(variants$Pearson_raw, 4)
+variants$Log1p <- round(variants$Log1p_raw, 4)
+variants$Spearman <- round(variants$Spearman_raw, 4)
+variants$Method <- gsub("<", "$<$", variants$Method, fixed = TRUE)
+
+cat("\n=== RSEI Match Rate Summary ===\n")
+print(variants[, c("Method", "Exact_Match", "Pearson", "Log1p", "Spearman")], row.names = FALSE)
+
+rsei_rows <- sprintf("%s & %.1f & %.3f & %.3f & %.3f \\\\",
+                     variants$Method, variants$Exact_Match,
+                     variants$Pearson, variants$Log1p, variants$Spearman)
+if (length(rsei_rows) > 0) {
+  rsei_rows[length(rsei_rows)] <- sub("\\\\\\\\$", "", rsei_rows[length(rsei_rows)])
+}
+write_rows_tex(rsei_rows, "rsei_matching_variants_rows.tex")
+
+best_idx <- variants %>%
+  mutate(idx = row_number(),
+         best_score = ifelse(is.na(Pearson_raw), -Inf, Pearson_raw)) %>%
+  arrange(desc(best_score), desc(Exact_Match_raw), desc(Match_rate)) %>%
+  slice(1) %>%
+  pull(idx)
+
+best_variant <- variants[best_idx, ]
+best_stats <- variant_results[[best_idx]]$stats
+
+best_grid_prep <- if (best_variant$grid == "wgs") grid_wgs else grid_albers
+best_matched <- run_rsei_variant(best_grid_prep, best_variant$value_col)$matched
+
+best_value <- paste0("rsei_", best_variant$value_col)
+comparison_rsei <- best_matched %>%
+  select(CONTROL, TESTERID, SEQRH, RSEI,
+         our_rsei = all_of(best_value))
+
+write_csv(comparison_rsei, "Data/rsei_matching_validation.csv")
+cat("Detailed RSEI validation results saved to: Data/rsei_matching_validation.csv\n")
+
+cat(sprintf("RSEI best match: %s (matched %d/%d, exact %.1f%%, r = %.4f)\n",
+            best_variant$Method, best_stats$matched, best_stats$total,
+            best_stats$exact_rate, best_stats$correlation))
+cat(sprintf("RSEI best match (log1p Pearson = %.4f, Spearman = %.4f)\n",
+            variants$Log1p_raw[best_idx], variants$Spearman_raw[best_idx]))
+
+matching_summary <- matching_summary %>%
+  add_row(
+    Dataset = "RSEI toxic concentration",
+    N_total = best_stats$total,
+    N_matched = best_stats$matched,
+    Match_rate = best_stats$match_rate,
+    Exact_rate = best_stats$exact_rate,
+    Exact_rate_matched = best_stats$exact_rate_matched,
+    Correlation = best_stats$correlation
+  )
+
+# ==============================================================================
 # COORDINATE VALIDATION (OPTIONAL)
 # ==============================================================================
 

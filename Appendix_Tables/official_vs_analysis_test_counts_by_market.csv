@@ -1,0 +1,29 @@
+"market","official_passed_Black","official_passed_Hispanic","official_passed_Asian","local_paired_rows_Black","local_paired_rows_Hispanic","local_paired_rows_Asian","analysis_sample_Black","analysis_sample_Hispanic","analysis_sample_Asian","official_total","local_paired_rows_total","analysis_sample_total","analysis_minus_official","local_paired_minus_official"
+"New York-Northeastern NJ",54,42,49,92,82,82,60,46,60,145,256,166,21,111
+"Chicago-Gary-Lake, IL",35,39,39,69,45,53,37,38,42,113,167,117,4,54
+"Los Angeles-Long Beach, CA",43,44,52,58,55,61,42,47,52,139,174,141,2,35
+"Washington, DC/MD/VA",38,40,45,110,83,101,50,45,56,123,294,151,28,171
+"Philadelphia, PA/NJ",39,43,41,55,56,57,45,48,41,123,168,134,11,45
+"Atlanta, GA",51,39,51,106,95,99,63,41,42,141,300,146,5,159
+"Detroit, MI",37,31,0,74,51,0,53,35,0,68,125,88,20,57
+"Houston-Brazoria, TX",43,43,51,77,87,98,54,58,63,137,262,175,38,125
+"Miami-Hialeah, FL",40,43,0,125,92,0,50,56,0,83,217,106,23,134
+"Riverside-San Bernardino, CA",43,42,49,57,51,67,52,45,60,134,175,157,23,41
+"Dallas-Fort Worth, TX",43,43,49,61,63,70,49,45,65,135,194,159,24,59
+"San Diego, CA",0,40,46,0,61,69,0,40,47,86,130,87,1,44
+"Newark, NJ",47,44,48,73,65,60,52,49,52,139,198,153,14,59
+"Tampa-St. Petersburg-Clearwater, FL",46,37,46,103,104,99,61,40,53,129,306,154,25,177
+"Kansas City, MO-KS",42,43,47,103,68,72,54,51,55,132,243,160,28,111
+"Greensboro-Winston-Salem-High Point, NC",41,43,0,73,74,0,42,45,0,84,147,87,3,63
+"Cleveland, OH",46,47,51,72,63,79,49,49,58,144,214,156,12,70
+"Baltimore, MD",53,43,49,78,60,71,59,47,50,145,209,156,11,64
+"Richmond-Petersburg, VA",41,0,0,68,0,0,41,0,0,41,68,41,0,27
+"Orange County, CA",43,43,49,54,54,74,45,44,49,135,182,138,3,47
+"San Antonio, TX",43,46,48,103,111,102,52,56,55,137,316,163,26,179
+"Fort Worth-Arlington, TX",43,43,49,48,52,49,43,43,49,135,149,135,0,14
+"Albuquerque, NM",41,43,47,82,117,113,55,69,73,131,312,197,66,181
+"San Jose, CA",0,43,50,1,60,58,1,46,50,93,119,97,4,26
+"Boston, MA",12,12,9,53,33,17,23,21,11,33,103,55,22,70
+"Seattle-Everett, WA",41,39,47,66,71,88,43,40,50,127,225,133,6,98
+"Middlesex-Somerset-Hunterdon, NJ",43,43,48,56,56,61,43,44,47,134,173,134,0,39
+"Columbia, SC",43,0,0,68,0,0,45,0,0,43,68,45,2,25

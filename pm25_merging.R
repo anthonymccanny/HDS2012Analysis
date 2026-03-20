@@ -35,13 +35,39 @@ load_pm25_grid <- function(pm25_path,
     on.exit(ncdf4::nc_close(nc), add = TRUE)
 
     var_names <- names(nc$var)
+    dim_names <- names(nc$dim)
+
+    find_coord_name <- function(pattern, names_vec) {
+      hit <- names_vec[grepl(pattern, names_vec)][1]
+      if (length(hit) == 0 || is.na(hit) || hit == "") return(NULL)
+      hit
+    }
+
     if (is.null(nc_lat_var)) {
-      nc_lat_var <- var_names[grepl("^lat$|^latitude$|^LAT$|^Latitude$", var_names)][1]
+      nc_lat_var <- find_coord_name("^lat$|^latitude$|^LAT$|^Latitude$", var_names)
     }
     if (is.null(nc_lon_var)) {
-      nc_lon_var <- var_names[grepl("^lon$|^longitude$|^LON$|^Longitude$", var_names)][1]
+      nc_lon_var <- find_coord_name("^lon$|^longitude$|^LON$|^Longitude$", var_names)
     }
-    if (is.null(nc_lat_var) || is.null(nc_lon_var)) {
+
+    get_coord_vals <- function(name) {
+      if (is.null(name)) return(NULL)
+      if (name %in% var_names) return(ncdf4::ncvar_get(nc, name))
+      if (name %in% dim_names) return(nc$dim[[name]]$vals)
+      NULL
+    }
+
+    lat <- get_coord_vals(nc_lat_var)
+    lon <- get_coord_vals(nc_lon_var)
+
+    if (is.null(lat) || is.null(lon)) {
+      lat_dim <- find_coord_name("^lat$|^latitude$|^LAT$|^Latitude$", dim_names)
+      lon_dim <- find_coord_name("^lon$|^longitude$|^LON$|^Longitude$", dim_names)
+      if (is.null(lat)) lat <- get_coord_vals(lat_dim)
+      if (is.null(lon)) lon <- get_coord_vals(lon_dim)
+    }
+
+    if (is.null(lat) || is.null(lon)) {
       stop("Could not infer latitude/longitude variables in NetCDF file.")
     }
 
@@ -54,8 +80,6 @@ load_pm25_grid <- function(pm25_path,
       }
     }
 
-    lat <- ncdf4::ncvar_get(nc, nc_lat_var)
-    lon <- ncdf4::ncvar_get(nc, nc_lon_var)
     pm <- ncdf4::ncvar_get(nc, nc_pm_var)
 
     scale_factor_default <- 1

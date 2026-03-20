@@ -1,0 +1,35 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Neighborhood Effects with Linear Racial-Share Controls (School Quality and Safety)\\[0.5em]\textit{Appendix Table A6}}
+\label{tab:appendixA6}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{4}{c}{Dependent variable} \\
+\cmidrule(lr){2-5}
+& SEDA Elementary & SEDA Middle & Assaults & GreatSchools Elem \\
+\midrule
+Racial Minority &  0.0052 & -0.0033 &  3.0570 & -0.0359  \\
+ & ( 0.0078) & ( 0.0058) & ( 3.5881) & ( 0.0508)  \\
+ & [-0.0100,  0.0205] & [-0.0147,  0.0080] & [-3.9837,  10.0976] & [-0.1357,  0.0638]  \\
+African American & -0.0093 & -0.0066 &  4.4470 &  0.0403  \\
+ & ( 0.0127) & ( 0.0092) & ( 5.0489) & ( 0.0825)  \\
+ & [-0.0342,  0.0155] & [-0.0246,  0.0114] & [-5.4601,  14.3542] & [-0.1216,  0.2021]  \\
+Hispanic & -0.0036 & -0.0018 &  6.0479 & -0.1203  \\
+ & ( 0.0108) & ( 0.0105) & ( 5.0492) & ( 0.0869)  \\
+ & [-0.0248,  0.0177] & [-0.0225,  0.0189] & [-3.8599,  15.9557] & [-0.2907,  0.0502]  \\
+Asian &  0.0321\sym{**} & -0.0007 & -0.8534 & -0.0415  \\
+ & ( 0.0127) & ( 0.0090) & ( 6.8941) & ( 0.0860)  \\
+ & [ 0.0072,  0.0570] & [-0.0184,  0.0170] & [-14.3812,  12.6745] & [-0.2103,  0.1273]  \\
+\midrule
+Observations & 10{,}795 & 11{,}332 & 6{,}612 & 6{,}725\\
+Adjusted R$^2$ (Minority) & 0.6532 & 0.8218 & 0.6543 & 0.5783\\
+Adjusted R$^2$ (Category) & 0.6535 & 0.8218 & 0.6542 & 0.5784\\
+Number of Trials & 1{,}609 & 1{,}693 & 1{,}044 & 1{,}048\\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{5}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

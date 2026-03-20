@@ -25,6 +25,14 @@ for (pkg in packages) {
   }
 }
 
+# Parse command-line arguments
+args <- commandArgs(trailingOnly = TRUE)
+skip_geocoding <- "--skip-geocoding" %in% args
+
+if (skip_geocoding) {
+  cat("=== GEOCODING WILL BE SKIPPED (--skip-geocoding flag detected) ===\n")
+}
+
 # Set working directory
 setwd("/Users/anthony/Library/CloudStorage/OneDrive-UniversityofToronto/Research/Replication Games/HDS2012Analysis")
 
@@ -57,6 +65,15 @@ assignment <- assignment_raw %>%
   filter(grepl("-S[A-Z]-", CONTROL)) %>%  # Filter to sales tests (SA/SB/SH)
   filter(RELEASE == "1" & !is.na(TESTERID))  # Only released tests with valid tester IDs
 cat("Assignment: ", nrow(assignment_raw), "→", nrow(assignment), "rows after filtering to only sales and released tests\n")
+
+# Build kids indicator from assignment (ARELATE2-5 == 3 indicates child)
+assignment_kids <- assignment %>%
+  mutate(
+    has_child = (ARELATE2 == 3) | (ARELATE3 == 3) | (ARELATE4 == 3) | (ARELATE5 == 3),
+    all_rel_na = is.na(ARELATE2) & is.na(ARELATE3) & is.na(ARELATE4) & is.na(ARELATE5),
+    kids = if_else(all_rel_na, NA_real_, if_else(has_child, 1, 0))
+  ) %>%
+  select(CONTROL, TESTERID, kids)
 
 # Read taf file and filter to sales
 taf_raw <- import_sas(file.path(raw_data_path, "taf.sas7bdat"))
@@ -607,14 +624,22 @@ tester_clean %>%
 
 # Merge sales and tester data
 sales_and_tester <- sales_final %>%
-  left_join(tester_clean, by = "TESTERID")
+  left_join(tester_clean, by = "TESTERID") %>%
+  left_join(assignment_kids, by = c("CONTROL", "TESTERID")) %>%
+  mutate(
+    mother = if_else(kids == 1 & TSEX == 0, 1, if_else(is.na(kids) | is.na(TSEX), NA_real_, 0))
+  )
 
 write_csv(sales_and_tester, "Data/sales_and_tester_merged.csv")
 cat("Exported merged data to Data/sales_and_tester_merged.csv (", nrow(sales_and_tester), "rows)\n")
 
 # Alternate specification keeping each appointment as a separate row
 sales_and_tester_appointments <- sales_appointments %>%
-  left_join(tester_clean, by = "TESTERID")
+  left_join(tester_clean, by = "TESTERID") %>%
+  left_join(assignment_kids, by = c("CONTROL", "TESTERID")) %>%
+  mutate(
+    mother = if_else(kids == 1 & TSEX == 0, 1, if_else(is.na(kids) | is.na(TSEX), NA_real_, 0))
+  )
 write_csv(sales_and_tester_appointments, "Data/sales_and_tester_appointments.csv")
 cat("Exported sales and tester appointments data to Data/sales_and_tester_appointments.csv (", nrow(sales_and_tester_appointments), "rows)\n")
 
@@ -916,31 +941,52 @@ cat("Exported merged data to Data/sales_tester_rechomes_merged.csv\n")
 
 cat("=== GEOCODING  ===\n")
 
-source("address_geocoding.R")
+if (skip_geocoding) {
+  cat("Skipping geocoding step (--skip-geocoding flag set)\n")
+  if (file.exists("Data/sales_tester_rechomes_geocoded.csv")) {
+    cat("Loading previously geocoded data from Data/sales_tester_rechomes_geocoded.csv\n")
+    sales_tester_rechomes_geocoded <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
+    # Backfill kids/mother for older cached geocoding files
+    if (!("kids" %in% names(sales_tester_rechomes_geocoded))) {
+      sales_tester_rechomes_geocoded <- sales_tester_rechomes_geocoded %>%
+        left_join(assignment_kids, by = c("CONTROL", "TESTERID"))
+    }
+    if (!("mother" %in% names(sales_tester_rechomes_geocoded))) {
+      sales_tester_rechomes_geocoded <- sales_tester_rechomes_geocoded %>%
+        mutate(
+          mother = if_else(kids == 1 & TSEX == 0, 1,
+                           if_else(is.na(kids) | is.na(TSEX), NA_real_, 0))
+        )
+    }
+  } else {
+    stop("Cannot skip geocoding: Data/sales_tester_rechomes_geocoded.csv does not exist. Run without --skip-geocoding first.")
+  }
+} else {
+  source("address_geocoding.R")
 
+  # Ensure UTF-8 encoding for address fields before geocoding
+  sales_tester_rechomes <- sales_tester_rechomes %>%
+    mutate(
+      HSITEAD = iconv(HSITEAD, to = "UTF-8", sub = ""),
+      HCITY = iconv(HCITY, to = "UTF-8", sub = ""),
+      HSTATE = iconv(HSTATE, to = "UTF-8", sub = ""),
+      HZIP = iconv(HZIP, to = "UTF-8", sub = "")
+    )
 
-# Ensure UTF-8 encoding for address fields before geocoding
-sales_tester_rechomes <- sales_tester_rechomes %>%
-  mutate(
-    HSITEAD = iconv(HSITEAD, to = "UTF-8", sub = ""),
-    HCITY = iconv(HCITY, to = "UTF-8", sub = ""),
-    HSTATE = iconv(HSTATE, to = "UTF-8", sub = ""),
-    HZIP = iconv(HZIP, to = "UTF-8", sub = "")
+  # Run geocoding on sales_tester_rechomes data
+  sales_tester_rechomes_geocoded <- geocode_addresses(
+    df = sales_tester_rechomes,
+    street_col = "HSITEAD",
+    city_col = "HCITY", 
+    state_col = "HSTATE",
+    postalcode_col = "HZIP",
+    geoid_col = "stfid"
   )
 
-# Run geocoding on sales_tester_rechomes data
-sales_tester_rechomes_geocoded <- geocode_addresses(
-  df = sales_tester_rechomes,
-  street_col = "HSITEAD",
-  city_col = "HCITY", 
-  state_col = "HSTATE",
-  postalcode_col = "HZIP",
-  geoid_col = "stfid"
-)
-
-# Export the geocoded data
-write_csv(sales_tester_rechomes_geocoded, "Data/sales_tester_rechomes_geocoded.csv")
-cat("Exported geocoded data to Data/sales_tester_rechomes_geocoded.csv\n")
+  # Export the geocoded data
+  write_csv(sales_tester_rechomes_geocoded, "Data/sales_tester_rechomes_geocoded.csv")
+  cat("Exported geocoded data to Data/sales_tester_rechomes_geocoded.csv\n")
+}
 
 # =================================================================================================== #
 # MERGE WITH EXTERNAL (NON-HDS) DATASETS
@@ -949,7 +995,11 @@ cat("Exported geocoded data to Data/sales_tester_rechomes_geocoded.csv\n")
 cat("=== MERGING EXTERNAL DATASETS (ACS + NON-HDS) ===\n")
 
 # Reload CSV from file in case you want to run the file from here.
-merged_external_data <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
+if (exists("sales_tester_rechomes_geocoded")) {
+  merged_external_data <- sales_tester_rechomes_geocoded
+} else {
+  merged_external_data <- read_csv("Data/sales_tester_rechomes_geocoded.csv")
+}
 
 # Load merge helpers
 source("acs_merging.R")
@@ -969,12 +1019,45 @@ merged_external_data <- merge_acs(
   geoid_col = "tract_geoid"
 )
 
+# Map ACS variables into C&T-style names expected by analysis.R (Rec only)
+merged_external_data <- merged_external_data %>%
+  mutate(
+    w2012pc_Rec = percent_white,
+    povrate_Rec = poverty_rate,
+    skill_Rec = high_skilled_rate,
+    college_Rec = college_graduate_rate,
+    singlefamily_Rec = single_parent_rate,
+    ownerocc_Rec = ownership_rate,
+    medincome_Rec = median_income,
+    nodad_Rec = nodad_rate
+  )
+
+# Create income-tiered white share using tract median income tertiles
+income_cutoffs <- quantile(merged_external_data$medincome_Rec, probs = c(1/3, 2/3), na.rm = TRUE, names = FALSE)
+merged_external_data <- merged_external_data %>%
+  mutate(
+    income_tier = case_when(
+      is.na(medincome_Rec) ~ NA_character_,
+      medincome_Rec <= income_cutoffs[1] ~ "low",
+      medincome_Rec <= income_cutoffs[2] ~ "mid",
+      TRUE ~ "high"
+    ),
+    WhiteLI_Rec = if_else(income_tier == "low", w2012pc_Rec, NA_real_),
+    WhiteMI_Rec = if_else(income_tier == "mid", w2012pc_Rec, NA_real_),
+    WhiteHI_Rec = if_else(income_tier == "high", w2012pc_Rec, NA_real_)
+  ) %>%
+  select(-income_tier)
+
 cat("\n--- Superfund site counts (5 km) ---\n")
 merged_external_data <- merge_superfund_counts(
   merged_external_data,
   lat_col = "lat",
   lon_col = "long"
 )
+if ("SFcount_5km" %in% names(merged_external_data) && !"SFcount_Rec" %in% names(merged_external_data)) {
+  merged_external_data <- merged_external_data %>%
+    rename(SFcount_Rec = SFcount_5km)
+}
 
 cat("\n--- SEDA school test scores ---\n")
 merged_external_data <- merge_school_scores(
@@ -1000,6 +1083,10 @@ merged_external_data <- merge_rsei_toxic_conc(
   lookup_cache = "Data/Non_HDS/RSEI/rsei_grid_lookup_2012.rds",
   coords_cache = "Data/Non_HDS/RSEI/rsei_grid_coords_wgs84_2012.rds"
 )
+if ("rsei_toxconc" %in% names(merged_external_data) && !"RSEI_Rec" %in% names(merged_external_data)) {
+  merged_external_data <- merged_external_data %>%
+    mutate(RSEI_Rec = rsei_toxconc)
+}
 
 cat("\n--- PM2.5 modeled concentrations (2012) ---\n")
 merged_external_data <- merge_pm25(

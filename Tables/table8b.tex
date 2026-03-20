@@ -1,0 +1,35 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Discriminatory Steering and Neighborhood Effects (Panel B: ACS Characteristics)\\[0.5em]\textit{Table 8, C\&T 2022}}
+\label{tab:table8b}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+& \multicolumn{5}{c}{Dependent variable} \\
+\cmidrule(lr){2-6}
+& Poverty Rate & High Skill & College & Single Family & Ownership Rate \\
+\midrule
+Racial Minority &  0.0011 & -0.0044\sym{**} & -0.0076\sym{***} &  0.0033\sym{***} & -0.0015  \\
+ & ( 0.0013) & ( 0.0021) & ( 0.0026) & ( 0.0012) & ( 0.0030)  \\
+ & [-0.0015,  0.0036] & [-0.0085, -0.0002] & [-0.0127, -0.0026] & [ 0.0009,  0.0057] & [-0.0074,  0.0044]  \\
+African American &  0.0008 & -0.0040 & -0.0114\sym{***} &  0.0055\sym{***} & -0.0033  \\
+ & ( 0.0018) & ( 0.0031) & ( 0.0040) & ( 0.0019) & ( 0.0048)  \\
+ & [-0.0027,  0.0043] & [-0.0101,  0.0020] & [-0.0192, -0.0036] & [ 0.0017,  0.0093] & [-0.0126,  0.0061]  \\
+Hispanic &  0.0015 & -0.0099\sym{***} & -0.0111\sym{***} &  0.0033\sym{*} & -0.0048  \\
+ & ( 0.0021) & ( 0.0033) & ( 0.0041) & ( 0.0020) & ( 0.0051)  \\
+ & [-0.0026,  0.0056] & [-0.0164, -0.0033] & [-0.0191, -0.0031] & [-0.0005,  0.0072] & [-0.0147,  0.0051]  \\
+Asian &  0.0009 &  0.0001 & -0.0006 &  0.0008 &  0.0033  \\
+ & ( 0.0022) & ( 0.0039) & ( 0.0046) & ( 0.0020) & ( 0.0049)  \\
+ & [-0.0033,  0.0052] & [-0.0076,  0.0078] & [-0.0096,  0.0084] & [-0.0031,  0.0048] & [-0.0064,  0.0129]  \\
+\midrule
+Observations & 18{,}889 & 18{,}889 & 18{,}889 & 18{,}889 & 18{,}889\\
+Adjusted R$^2$ (Minority) & 0.5224 & 0.6587 & 0.7361 & 0.5339 & 0.5583\\
+Adjusted R$^2$ (Category) & 0.5224 & 0.6588 & 0.7362 & 0.5340 & 0.5583\\
+Number of Trials & 2{,}702 & 2{,}702 & 2{,}702 & 2{,}702 & 2{,}702\\
+\bottomrule
+\multicolumn{6}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{6}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

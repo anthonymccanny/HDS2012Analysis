@@ -1,0 +1,35 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Discriminatory Steering and Neighborhood Effects (Mothers, Panel A)\\[0.5em]\textit{Table 10, C\&T 2022}}
+\label{tab:table10a}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{4}{c}{Dependent variable} \\
+\cmidrule(lr){2-5}
+& SEDA Elementary & SEDA Middle & Assaults & GreatSchools Elem \\
+\midrule
+Racial Minority &  0.0013 & -0.0194\sym{*} &  1.6264 &  0.0181  \\
+ & ( 0.0131) & ( 0.0112) & ( 3.6276) & ( 0.1201)  \\
+ & [-0.0245,  0.0270] & [-0.0413,  0.0026] & [-5.5045,  8.7574] & [-0.2180,  0.2541]  \\
+African American & -0.0151 & -0.0462\sym{**} &  5.8079 &  0.0478  \\
+ & ( 0.0208) & ( 0.0182) & ( 5.8319) & ( 0.1916)  \\
+ & [-0.0560,  0.0258] & [-0.0820, -0.0103] & [-5.6563,  17.2720] & [-0.3289,  0.4244]  \\
+Hispanic & -0.0052 &  0.0101 &  7.4495 & -0.1345  \\
+ & ( 0.0193) & ( 0.0169) & ( 6.6638) & ( 0.1550)  \\
+ & [-0.0431,  0.0326] & [-0.0231,  0.0434] & [-5.6501,  20.5492] & [-0.4392,  0.1702]  \\
+Asian &  0.0368 & -0.0188 & -7.3912 &  0.1188  \\
+ & ( 0.0252) & ( 0.0182) & ( 5.9077) & ( 0.1949)  \\
+ & [-0.0127,  0.0863] & [-0.0545,  0.0169] & [-19.0043,  4.2220] & [-0.2643,  0.5019]  \\
+\midrule
+Observations & 4{,}132 & 4{,}366 & 2{,}676 & 2{,}696\\
+Adjusted R$^2$ (Minority) & 0.6272 & 0.7965 & 0.7502 & 0.4533\\
+Adjusted R$^2$ (Category) & 0.6275 & 0.7970 & 0.7505 & 0.4533\\
+Number of Trials & 600 & 627 & 410 & 400\\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{5}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

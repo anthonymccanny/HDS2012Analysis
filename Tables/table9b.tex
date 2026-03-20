@@ -1,0 +1,35 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Discriminatory Steering and Local Pollution Exposures (Panel B: Mothers)\\[0.5em]\textit{Table 9, C\&T 2022}}
+\label{tab:table9b}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+& \multicolumn{3}{c}{Dependent variable} \\
+\cmidrule(lr){2-4}
+& Superfund & Toxics (RSEI) & PM2.5 \\
+\midrule
+Racial Minority &  0.0996\sym{**} & -1220.6494 &  0.0387\sym{*}  \\
+ & ( 0.0412) & ( 2101.9041) & ( 0.0218)  \\
+ & [ 0.0188,  0.1805] & [-5345.3382,  2904.0394] & [-0.0041,  0.0816]  \\
+African American &  0.0704\sym{*} & -4091.2189 &  0.0709\sym{**}  \\
+ & ( 0.0408) & ( 4488.2187) & ( 0.0312)  \\
+ & [-0.0096,  0.1505] & [-12898.7120,  4716.2741] & [ 0.0098,  0.1320]  \\
+Hispanic &  0.0419 & -257.8142 & -0.0359  \\
+ & ( 0.0452) & ( 1536.6836) & ( 0.0325)  \\
+ & [-0.0468,  0.1305] & [-3273.3380,  2757.7096] & [-0.0997,  0.0278]  \\
+Asian &  0.1970\sym{**} &  1190.7782 &  0.0805\sym{**}  \\
+ & ( 0.0790) & ( 917.8413) & ( 0.0380)  \\
+ & [ 0.0420,  0.3521] & [-610.3553,  2991.9117] & [ 0.0059,  0.1552]  \\
+\midrule
+Observations & 7{,}093 & 7{,}093 & 7{,}089\\
+Adjusted R$^2$ (Minority) & 0.6801 & 0.3439 & 0.9496\\
+Adjusted R$^2$ (Category) & 0.6808 & 0.3443 & 0.9497\\
+Number of Trials & 993 & 993 & 993\\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{4}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

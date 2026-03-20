@@ -1,0 +1,103 @@
+HDS2012Analysis – Codex handoff (2026-01-22)
+
+Context
+- Repo: /Users/anthony/Library/CloudStorage/OneDrive-UniversityofToronto/Research/Replication Games/HDS2012Analysis
+- Goal: replicate Tables 6–12 (Table 13 skipped) using paired-tester design in analysis.R with CONTROL FE + tester covariates as in current analysis file.
+- Network blocked in current instance → ACS API not reachable; new instance should rerun data_cleaning.R with network to pull ACS.
+
+Key decisions from user
+- Add kids/mother flags into data_cleaning.R.
+- Pull ACS variables fresh from Census API (not via C&T HUDprocessed_JPE_census_042021.rds). User does NOT want C&T census merge. Include all lat/long, including those not in JPE census.
+- Skip Table 13 for now. Table 14 not yet implemented.
+- Use CONTROL + tester-level covariates per current analysis.R (am_indicator_first, TSEX, THHEGAI, TPEGAI, THIGHEDU, TCURTENR, age), unless table requires a different set (none currently).
+
+Changes made in current instance
+1) pm25_merging.R
+- Fixed NetCDF coord inference. PM2.5 V5 file only stores lat/lon as dimensions, not variables. Loader now checks nc$dim values if lat/lon vars are missing.
+- load_pm25_grid now works: lat length 4300, lon length 9000, pm 4300x9000.
+
+2) data_cleaning.R
+- Added kids indicator from assignment.sas7bdat: ARELATE2-5 == 3 → kids=1.
+- Joined kids into sales_and_tester and sales_and_tester_appointments; created mother flag (kids==1 & female).
+- Added C&T census merge (ct_census_merging.R) and renamed SFcount_5km → SFcount_Rec; set RSEI_Rec = rsei_toxconc.
+- NOTE: User does NOT want C&T census merge; new instance should remove this and use ACS instead.
+
+3) New file: ct_census_merging.R
+- Merges HUDprocessed_JPE_census_042021.rds vars onto data by CONTROL/TESTERID/SEQRH.
+- Should be removed/unused per user preference.
+
+4) analysis.R
+- Fixed typo summary(reccomended_total_races) → summary(recommended_total_races).
+- Replaced old Table 6 + ACS outcomes block with new Tables 6–12 section using paired-tester specs.
+- Added helper functions for table generation (stars, CI, LaTeX) in the new section.
+- Table 6 uses w2012pc_Rec (C&T-style white share), not percent_white.
+- Table 7 uses WhiteHI/MI/LI_Rec.
+- Table 8 uses mn_avg_ol_elem_Rec, mn_avg_ol_middle_Rec, Assault_Rec, Elementary_School_Score_Rec + ACS outcomes (povrate_Rec, skill_Rec, college_Rec, singlefamily_Rec, ownerocc_Rec).
+- Table 9 uses SFcount_Rec, RSEI_Rec, PM25_Rec. Also Panel B restricted to mothers.
+- Table 10 Panel A/B: same outcomes as Table 8 but mothers.
+- Table 11: constructs MTOpovrate and MTOpovrateHighDad using povrate_Rec and nodad_Rec, subsets by povrate_Ad and nodad_Ad; regressions are RACE only (no ofcolor) with base covariates.
+- Table 12: log(medincome_Rec) for All / Families / Moms.
+- Disabled APPENDIX regressions with if(FALSE) to avoid undefined objects.
+- Added TSEX_num numeric helper for mother filter.
+
+Known issues / required changes for next instance
+- Remove the C&T census merge in data_cleaning.R and delete/ignore ct_census_merging.R.
+- Replace ACS variables from C&T with fresh ACS pull (per user). The intended ACS vars in acs_merging.R are tract-level:
+  * poverty_rate
+  * college_graduate_rate
+  * high_skilled_rate
+  * single_parent_rate
+  * ownership_rate
+  * percent_white / percent_black / percent_asian / percent_hispanic
+- However, Tables 6–12 currently expect C&T-style variables: w2012pc_Rec, WhiteHI/MI/LI_Rec, povrate_Rec, skill_Rec, college_Rec, singlefamily_Rec, ownerocc_Rec, medincome_Rec, nodad_Rec, and Ad versions.
+  You must decide how to compute these from ACS (by tract/blockgroup) and from advertised vs. recommended homes.
+  For example:
+    - w2012pc_Rec could map to ACS percent_white at the rec home’s tract.
+    - WhiteHI/MI/LI_Rec likely computed using tract income × racial composition; requires C&T definition.
+    - povrate_Rec, skill_Rec, college_Rec, singlefamily_Rec, ownerocc_Rec align with ACS rates but are in C&T naming. You’ll need to either rename or update analysis.R to use ACS names.
+    - medincome_Rec can come from ACS median income (tract or blockgroup), probably via new acs_merging.
+    - nodad_Rec / nodad_Ad: likely from ACS family structure, but C&T uses “share of households without father” (nodad). You’ll need to derive or change Table 11 to use available ACS measure.
+
+PM2.5 error root cause (for reference)
+- The V5 NetCDF has only variable GWRPM25 (dims lon x lat). No lat/lon variables. Loader previously tried to find lat/lon among variables, failed and attempted to read ncvar_get with NA → returned pm matrix → dimension mismatch. Fix now uses nc$dim values.
+
+What to do next (new instance w/ network)
+1) Revert/adjust census merge:
+   - Remove source("ct_census_merging.R") and merge_ct_census_vars call in data_cleaning.R.
+   - Decide how to generate Table 6–12 inputs directly from ACS (tract/blockgroup). You may need to update analysis.R variable names accordingly.
+
+2) Run data_cleaning.R with network:
+   - Rscript data_cleaning.R --skip-geocoding
+   - Ensure ACS pull succeeds (api.census.gov).
+
+3) Validate merges:
+   - Confirm ACS columns exist in Data/cleaned_hds.csv.
+   - Confirm PM25_Rec, RSEI_Rec, SFcount_Rec, GreatSchools/Assault are present.
+
+4) Update analysis.R if variable names change from C&T naming.
+
+5) Run analysis.R and capture outputs for tables 6–12.
+
+Files to inspect for context
+- analysis.R (Tables 6–12 rewrite section)
+- data_cleaning.R (ACS + external merge section)
+- acs_merging.R (ACS definitions)
+- pm25_merging.R (fixed)
+
+Notes
+- User wants all ACS data pulled fresh; avoid C&T census .rds merge.
+- Table 13 skipped for now.
+- If you need to map C&T variable definitions, see Data/HuD_Replication/Table_* scripts and Chistensen and Timmins (2022).md
+
+ACS formulas currently implemented (acs_merging.R)
+- poverty_rate = poverty_belowE / poverty_totalE (B17001)
+- college_graduate_rate = (education_bachelorsE + education_mastersE + education_professionalE + education_doctorateE) / education_totalE (B15003)
+- high_skilled_rate = (occupation_mgmt_maleE + occupation_mgmt_femaleE) / occupation_totalE (C24010)
+- single_parent_rate = (single_parent_maleE + single_parent_femaleE) / total_householdsE (B11001)
+- ownership_rate = tenure_ownedE / tenure_totalE (B25003)
+- percent_white = race_white_aloneE / race_totalE (B03002)
+- percent_black = race_black_aloneE / race_totalE
+- percent_asian = race_asian_aloneE / race_totalE
+- percent_hispanic = race_hispanicE / race_totalE
+
+Note: These are tract-level in acs_merging.R (2008–2012 5-year). If you need block-group level instead, change geography to "block group" and adjust GEOIDs. These can be used to replace C&T vars in analysis.R (e.g., w2012pc_Rec ⇢ percent_white, povrate_Rec ⇢ poverty_rate, skill_Rec ⇢ high_skilled_rate, college_Rec ⇢ college_graduate_rate, ownerocc_Rec ⇢ ownership_rate, singlefamily_Rec ⇢ single_parent_rate or a different ACS definition if you want true single-family share).

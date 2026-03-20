@@ -1,0 +1,30 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Within-Race Linear Models of Family Status and Steering Outcomes (Asian Testers)\\[0.5em]\textit{Appendix Table A5}}
+\label{tab:appendixA5}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+& \multicolumn{5}{c}{Dependent variable} \\
+\cmidrule(lr){2-6}
+& White Share & SEDA Elem & SEDA Middle & GreatSchools Elem & Poverty Rate \\
+\midrule
+Kids &  0.0133 &  0.1285\sym{***} &  0.1110\sym{**} &  0.5642\sym{**} & -0.0113\sym{**}  \\
+ & ( 0.0214) & ( 0.0481) & ( 0.0485) & ( 0.2491) & ( 0.0055)  \\
+ & [-0.0286,  0.0552] & [ 0.0340,  0.2229] & [ 0.0158,  0.2062] & [ 0.0755,  1.0529] & [-0.0221, -0.0006]  \\
+Mother &  0.0282 &  0.1414\sym{**} &  0.1487\sym{**} &  1.0725\sym{***} & -0.0153\sym{**}  \\
+ & ( 0.0335) & ( 0.0685) & ( 0.0697) & ( 0.3751) & ( 0.0075)  \\
+ & [-0.0376,  0.0939] & [ 0.0071,  0.2758] & [ 0.0121,  0.2853] & [ 0.3368,  1.8082] & [-0.0300, -0.0006]  \\
+\midrule
+Observations & 2{,}974 & 1{,}687 & 1{,}725 & 1{,}500 & 2{,}974\\
+Adjusted R$^2$ (Kids model) & 0.1190 & 0.1223 & 0.2514 & 0.0848 & 0.0447\\
+Adjusted R$^2$ (Mother model) & 0.1201 & 0.1169 & 0.2518 & 0.0990 & 0.0447\\
+Number of Trials & 896 & 533 & 549 & 505 & 896\\
+\bottomrule
+\multicolumn{6}{l}{\footnotesize Rows come from separate linear regressions on kids and mother indicators with the full baseline controls, without control fixed effects.}\\
+\multicolumn{6}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{6}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

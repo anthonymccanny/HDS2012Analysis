@@ -1,0 +1,35 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Discriminatory Steering and Neighborhood Racial Composition by Income\\[0.5em]\textit{Table 7, C\&T 2022}}
+\label{tab:table7}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+& \multicolumn{3}{c}{Dependent variable} \\
+\cmidrule(lr){2-4}
+& High Income & Middle Income & Low Income \\
+\midrule
+Racial Minority & -0.0070\sym{*} & -0.0092\sym{***} & -0.0053  \\
+ & ( 0.0039) & ( 0.0034) & ( 0.0057)  \\
+ & [-0.0145,  0.0006] & [-0.0159, -0.0026] & [-0.0165,  0.0059]  \\
+African American & -0.0205\sym{***} & -0.0151\sym{***} & -0.0073  \\
+ & ( 0.0064) & ( 0.0052) & ( 0.0089)  \\
+ & [-0.0332, -0.0079] & [-0.0253, -0.0048] & [-0.0247,  0.0102]  \\
+Hispanic &  0.0035 & -0.0029 &  0.0005  \\
+ & ( 0.0062) & ( 0.0055) & ( 0.0101)  \\
+ & [-0.0087,  0.0157] & [-0.0138,  0.0079] & [-0.0193,  0.0203]  \\
+Asian & -0.0024 & -0.0088 & -0.0096  \\
+ & ( 0.0054) & ( 0.0061) & ( 0.0081)  \\
+ & [-0.0130,  0.0081] & [-0.0208,  0.0031] & [-0.0254,  0.0063]  \\
+\midrule
+Observations & 5{,}225 & 4{,}878 & 5{,}359\\
+Adjusted R$^2$ (Minority) & 0.7533 & 0.8173 & 0.8188\\
+Adjusted R$^2$ (Category) & 0.7540 & 0.8173 & 0.8187\\
+Number of Trials & 975 & 1{,}051 & 1{,}087\\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{4}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

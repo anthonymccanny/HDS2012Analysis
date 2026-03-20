@@ -1,0 +1,35 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Neighborhood Effects with Linear Racial-Share Controls (Pollution)\\[0.5em]\textit{Appendix Table A8}}
+\label{tab:appendixA8}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+& \multicolumn{3}{c}{Dependent variable} \\
+\cmidrule(lr){2-4}
+& Superfund & Toxics (RSEI) & PM2.5 \\
+\midrule
+Racial Minority &  0.0238 & -1302.8961 & -0.0037  \\
+ & ( 0.0194) & ( 1245.7993) & ( 0.0121)  \\
+ & [-0.0144,  0.0619] & [-3745.7125,  1139.9204] & [-0.0273,  0.0200]  \\
+African American &  0.0269 & -4565.2651 &  0.0044  \\
+ & ( 0.0202) & ( 3676.8443) & ( 0.0176)  \\
+ & [-0.0127,  0.0664] & [-11774.9782,  2644.4481] & [-0.0300,  0.0388]  \\
+Hispanic & -0.0039 &  279.1952 & -0.0361\sym{*}  \\
+ & ( 0.0265) & ( 683.5109) & ( 0.0205)  \\
+ & [-0.0558,  0.0480] & [-1061.0621,  1619.4525] & [-0.0762,  0.0040]  \\
+Asian &  0.0449 &  741.2633 &  0.0165  \\
+ & ( 0.0370) & ( 595.3595) & ( 0.0204)  \\
+ & [-0.0276,  0.1175] & [-426.1431,  1908.6696] & [-0.0235,  0.0564]  \\
+\midrule
+Observations & 18{,}889 & 18{,}889 & 18{,}868\\
+Adjusted R$^2$ (Minority) & 0.6579 & 0.3277 & 0.9449\\
+Adjusted R$^2$ (Category) & 0.6580 & 0.3277 & 0.9450\\
+Number of Trials & 2{,}702 & 2{,}702 & 2{,}701\\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{4}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

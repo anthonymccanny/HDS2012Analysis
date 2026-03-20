@@ -1,0 +1,6 @@
+Analytic Hispanic tester appearances: 857; unique Hispanic testers: 163.
+APRACE supports a coarse split inside the Hispanic category: 334 white-coded appearances and 523 other-coded appearances.
+TNATORIG is not useful within the Hispanic analytic sample because it is almost entirely coded Hispanic.
+THISPUBG provides Hispanic subgroup labels (for example Mexican, Puerto Rican, Central American, South American) but not race within Hispanic identity.
+TRACESPY and TCORGI2 are exploratory text fields: they contain some explicit entries such as Black Hispanic and Indigenous-Mexican, but most values are generic Hispanic/Latino or birthplace descriptions.
+Explicit non-white text examples in TRACESPY were sparse but present: Indigenous- Mexican (2); Mestizo (1).

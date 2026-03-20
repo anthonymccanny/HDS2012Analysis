@@ -1,0 +1,27 @@
+"sample","variable","value","label","n"
+"analytic_appearances","APRACE","5","Other (specify)",523
+"analytic_appearances","APRACE","1","White",334
+"analytic_appearances","TNATORIG","2","Hispanic",856
+"analytic_appearances","TNATORIG","-1","Missing",1
+"analytic_appearances","THISPUBG","1","Mexican",331
+"analytic_appearances","THISPUBG","6","South American",152
+"analytic_appearances","THISPUBG","4","Puerto Rican",110
+"analytic_appearances","THISPUBG","5","Central American",75
+"analytic_appearances","THISPUBG","-1","Missing",55
+"analytic_appearances","THISPUBG","8","Other Hispanic",51
+"analytic_appearances","THISPUBG","2","Cuban",45
+"analytic_appearances","THISPUBG","7","Spanish",21
+"analytic_appearances","THISPUBG","3","Dominican",17
+"unique_testers","APRACE","5","Other (specify)",99
+"unique_testers","APRACE","1","White",64
+"unique_testers","TNATORIG","2","Hispanic",162
+"unique_testers","TNATORIG","-1","Missing",1
+"unique_testers","THISPUBG","1","Mexican",61
+"unique_testers","THISPUBG","6","South American",35
+"unique_testers","THISPUBG","4","Puerto Rican",19
+"unique_testers","THISPUBG","5","Central American",14
+"unique_testers","THISPUBG","-1","Missing",11
+"unique_testers","THISPUBG","2","Cuban",7
+"unique_testers","THISPUBG","8","Other Hispanic",7
+"unique_testers","THISPUBG","7","Spanish",5
+"unique_testers","THISPUBG","3","Dominican",4

@@ -1,0 +1,31 @@
+\begin{table}[p]
+\centering
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\caption{Discriminatory Steering: Median Income in Neighborhood\\[0.5em]\textit{Table 12, C\&T 2022}}
+\label{tab:table12}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+& \multicolumn{3}{c}{Dependent variable} \\
+\cmidrule(lr){2-4}
+& All Testers & Families & Moms \\
+\midrule
+African American & -0.0110 & -0.0171\sym{*} & -0.0252\sym{*}  \\
+ & ( 0.0089) & ( 0.0101) & ( 0.0146)  \\
+ & [-0.0284,  0.0063] & [-0.0369,  0.0027] & [-0.0538,  0.0034]  \\
+Hispanic & -0.0115 & -0.0138 & -0.0024  \\
+ & ( 0.0094) & ( 0.0118) & ( 0.0161)  \\
+ & [-0.0300,  0.0070] & [-0.0370,  0.0094] & [-0.0339,  0.0292]  \\
+Asian &  0.0013 &  0.0036 &  0.0256  \\
+ & ( 0.0099) & ( 0.0117) & ( 0.0159)  \\
+ & [-0.0182,  0.0208] & [-0.0194,  0.0265] & [-0.0056,  0.0568]  \\
+\midrule
+Observations & 18{,}889 & 11{,}986 & 7{,}222\\
+Adjusted R$^2$ & 0.6369 & 0.6359 & 0.6247\\
+Number of Trials & 2{,}702 & 2{,}702 & 2{,}702\\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Cluster-robust standard errors in parentheses; clustered at the trial level. 95\% confidence intervals in square brackets.}\\
+\multicolumn{4}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}%
+}
+\end{table}

@@ -1,0 +1,49 @@
+\documentclass[11pt]{article}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+
+
+\title{Matched Pair Design Results - Replication of Christensen \& Timmins (2022)}
+\author{Anthony McCanny}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+
+\section*{Replication Summary}
+\begin{itemize}
+  \item Choice set size (Table 5): minorities receive fewer recommended properties in total and per appointment; advertised-property availability differences are small and not significant.
+  \item Segregation (Tables 6--7): minority testers, especially African American, are steered to lower white-share neighborhoods, strongest in high- and middle-income strata.
+  \item School quality and safety (Tables 8A, 10A): effects are mostly null; the only consistent signal is modestly lower SEDA elementary scores for African American testers.
+  \item ACS neighborhood characteristics (Tables 8B, 10B): lower high-skill and college shares and higher single-parent shares for minorities, especially African American and Hispanic; poverty and ownership-rate effects are mostly null.
+  \item Pollution (Tables 9A--9B): full sample shows no significant Superfund, RSEI, or PM2.5 differences; mothers show higher Superfund counts and PM2.5, but RSEI remains null.
+  \item Median income (Table 12): modest negative effects only for African American families and mothers; otherwise null.
+\end{itemize}
+
+\section*{Original Abstract from Christensen \& Timmins (2022)}
+Growing evidence indicates that neighborhoods affect human capital accumulation, raising concern that the exclusionary effects of housing discrimination could contribute to persistent inequality in the United States. Using data from HUD's most recent Housing Discrimination Study and microlevel data on neighborhood attributes in 28 US cities, we find that minorities are steered toward neighborhoods with less economic opportunity and greater exposures to crime and pollution. Holding preferences and income constant, discriminatory steering alone can explain a disproportionate number of minority households found in high-poverty neighborhoods in the United States and the higher exposure of African American mothers to toxic pollutants.
+
+
+\section*{Largest Differences vs. Christensen \& Timmins (2022)}
+\begin{itemize}
+  \item Quantity vs. quality flips: we find significant reductions in the number of recommended properties (Table 5), while the paper emphasizes no meaningful quantity effects.
+  \item School and crime channel weakens: our school-quality and assaults results are mostly null, unlike the strong negative school and higher crime effects reported in the paper.
+  \item Pollution effects attenuate: full-sample pollution estimates are not significant; for mothers, only Superfund and PM2.5 show positive differences, while RSEI does not.
+  \item Mother-specific effects are smaller and less pervasive than the paper's reported magnitudes.
+\end{itemize}
+
+\input{Tables/table5.tex}
+\input{Tables/table6.tex}
+\input{Tables/table7.tex}
+\input{Tables/table8a.tex}
+\input{Tables/table8b.tex}
+\input{Tables/table9a.tex}
+\input{Tables/table9b.tex}
+\input{Tables/table10a.tex}
+\input{Tables/table10b.tex}
+\input{Tables/table12.tex}
+
+\end{document}

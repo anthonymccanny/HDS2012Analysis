@@ -61,6 +61,28 @@ acs_variables <- c(
   tenure_total = "B25003_001",       # Total occupied housing units
   tenure_owned = "B25003_002",       # Owner occupied
 
+  # Median Household Income (Table B19013)
+  median_income = "B19013_001",      # Median household income (past 12 months, inflation-adjusted)
+
+  # Household Income Distribution (Table B19001)
+  income_total = "B19001_001",
+  income_lt10 = "B19001_002",
+  income_10_14 = "B19001_003",
+  income_15_19 = "B19001_004",
+  income_20_24 = "B19001_005",
+  income_25_29 = "B19001_006",
+  income_30_34 = "B19001_007",
+  income_35_39 = "B19001_008",
+  income_40_44 = "B19001_009",
+  income_45_49 = "B19001_010",
+  income_50_59 = "B19001_011",
+  income_60_74 = "B19001_012",
+  income_75_99 = "B19001_013",
+  income_100_124 = "B19001_014",
+  income_125_149 = "B19001_015",
+  income_150_199 = "B19001_016",
+  income_200_plus = "B19001_017",
+
   # Race and Hispanic Origin (Table B03002)
   race_total = "B03002_001",         # Total population
   race_white_alone = "B03002_003",   # White alone
@@ -160,8 +182,37 @@ process_acs_variables <- function(acs_raw) {
         NA
       ),
 
+      # 4b. Share of family households without a father (female householder, no spouse)
+      nodad_rate = ifelse(
+        family_householdsE > 0,
+        single_parent_femaleE / family_householdsE,
+        NA
+      ),
+
       # 5. Home ownership rate
       ownership_rate = ifelse(tenure_totalE > 0, tenure_ownedE / tenure_totalE, NA),
+
+      # 5b. Median household income (ACS estimate)
+      median_income = ifelse(median_incomeE > 0, median_incomeE, NA),
+
+      # 5c. Household income distribution shares
+      income_low_share = ifelse(
+        income_totalE > 0,
+        (income_lt10E + income_10_14E + income_15_19E + income_20_24E +
+         income_25_29E + income_30_34E + income_35_39E + income_40_44E +
+         income_45_49E) / income_totalE,
+        NA
+      ),
+      income_mid_share = ifelse(
+        income_totalE > 0,
+        (income_50_59E + income_60_74E + income_75_99E) / income_totalE,
+        NA
+      ),
+      income_high_share = ifelse(
+        income_totalE > 0,
+        (income_100_124E + income_125_149E + income_150_199E + income_200_plusE) / income_totalE,
+        NA
+      ),
 
       # 6. Racial composition (as shares of total population)
       percent_white = ifelse(race_totalE > 0, race_white_aloneE / race_totalE, NA),
@@ -174,7 +225,8 @@ process_acs_variables <- function(acs_raw) {
     select(
       tract_geoid, NAME,
       poverty_rate, college_graduate_rate, high_skilled_rate,
-      single_parent_rate, ownership_rate,
+      single_parent_rate, nodad_rate, ownership_rate, median_income,
+      income_low_share, income_mid_share, income_high_share,
       percent_white, percent_black, percent_asian, percent_hispanic,
       # Keep raw counts for reference
       poverty_totalE, education_totalE, occupation_totalE,
